@@ -1,0 +1,29 @@
+# dependencias
+node_modules/
+.firebase/
+.pnpm/
+.yarn/
+*.tgz
+
+# Next.js
+.next/
+out/
+build/
+
+# entorno / config
+.env*
+.DS_Store
+.vercel/
+.vscode/
+*.log
+*.tsbuildinfo
+.next-env.d.ts
+turbo/
+
+# testing / coverage
+coverage/
+
+# sistema operativo
+Thumbs.db
+ehthumbs.db
+desktop.ini
