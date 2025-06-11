@@ -1,33 +1,46 @@
-// src/components/admin/InvitationsList.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { Table, Spinner, Badge } from "react-bootstrap";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import { useAuth } from "@/components/AuthProvider";
 
+interface Invitation {
+  id: string;
+  dni: string;
+  code: string;
+  createdAt?: Timestamp;
+  used: boolean;
+}
+
 const InvitationsList = () => {
-  const [invitations, setInvitations] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchInvitations = async () => {
       if (!user) return;
-      
+
       try {
         const q = query(
           collection(db, "candidateInvitations"),
           where("createdBy", "==", user.uid)
         );
-        
+
         const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({
+        const data = snapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data()
-        }));
-        
+          ...doc.data(),
+        })) as Invitation[];
+
         setInvitations(data);
       } catch (error) {
         console.error("Error fetching invitations:", error);

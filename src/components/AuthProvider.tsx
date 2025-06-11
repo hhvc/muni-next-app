@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { User } from "firebase/auth";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 import { auth, db } from "@/firebase/clientApp";
 
@@ -23,7 +23,7 @@ interface AuthContextType {
   errorDetails: string;
   isOnline: boolean;
   setNeedsInvitationCode: (value: boolean) => void;
-  reloadUserData: () => void; // Nueva función para recargar datos
+  reloadUserData: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,8 +39,7 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [needsInvitationCode, setNeedsInvitationCode] =
-    useState<boolean>(false);
+  const [needsInvitationCode, setNeedsInvitationCode] = useState<boolean>(false);
   const [loadingUserStatus, setLoadingUserStatus] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
@@ -52,18 +51,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const reloadUserData = useCallback(async () => {
     if (user && isOnline) {
       try {
+        setLoadingUserStatus(true);
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          setUserRole(userData?.role || "invitado");
+          setUserRole(userData?.role || null);
           setNeedsInvitationCode(
-            !["RRHH Admin", "Admin Principal"].includes(userData?.role)
+            !["RRHH Admin", "Admin Principal"].includes(userData?.role || "")
           );
+        } else {
+          setUserRole(null);
+          setNeedsInvitationCode(true);
         }
       } catch (error) {
         console.error("Error reloading user data:", error);
+        if (error instanceof FirebaseError) {
+          setErrorDetails(`Firebase error: ${error.code} - ${error.message}`);
+        } else {
+          setErrorDetails("Unknown error reloading user data");
+        }
+        setHasError(true);
+      } finally {
+        setLoadingUserStatus(false);
       }
     }
   }, [user, isOnline]);
@@ -110,28 +121,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         try {
           const userDocRef = doc(db, "users", firebaseUser.uid);
-
-          // Usamos un listener en tiempo real en lugar de getDoc
           const docUnsubscribe = onSnapshot(
             userDocRef,
             (userDocSnap) => {
-              if (userDocSnap.exists()) {
-                const userData = userDocSnap.data();
-                const role = userData?.role || "invitado";
-                setUserRole(role);
-                setNeedsInvitationCode(
-                  !["RRHH Admin", "Admin Principal"].includes(role)
-                );
-              } else {
-                // 1. No creamos el documento automáticamente
-                // 2. Marcamos que necesita validación
-                setUserRole(null);
-                setNeedsInvitationCode(true);
+              try {
+                if (userDocSnap.exists()) {
+                  const userData = userDocSnap.data();
+                  const role = userData?.role || null;
+                  setUserRole(role);
+                  setNeedsInvitationCode(
+                    !["RRHH Admin", "Admin Principal"].includes(role || "")
+                  );
+                } else {
+                  setUserRole(null);
+                  setNeedsInvitationCode(true);
+                }
+              } catch (snapshotError) {
+                console.error("Error procesando snapshot:", snapshotError);
+                setHasError(true);
+                if (snapshotError instanceof FirebaseError) {
+                  setErrorDetails(`Firestore error: ${snapshotError.code} - ${snapshotError.message}`);
+                } else {
+                  setErrorDetails("Error desconocido procesando datos de usuario");
+                }
+              } finally {
+                setLoadingUserStatus(false);
               }
-              setLoadingUserStatus(false);
             },
             (error) => {
               console.error("Error en listener de Firestore:", error);
+              setHasError(true);
+              if (error instanceof FirebaseError) {
+                setErrorDetails(`Firebase error: ${error.code} - ${error.message}`);
+              } else {
+                setErrorDetails("Error desconocido en listener de Firestore");
+              }
               setLoadingUserStatus(false);
             }
           );
@@ -139,6 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return () => docUnsubscribe();
         } catch (error) {
           console.error("Error general en AuthProvider:", error);
+          setHasError(true);
+          if (error instanceof FirebaseError) {
+            setErrorDetails(`Firebase error: ${error.code} - ${error.message}`);
+          } else {
+            setErrorDetails("Error desconocido inicializando listener");
+          }
           setLoadingUserStatus(false);
         }
       });
@@ -156,10 +186,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     errorDetails,
     isOnline,
     setNeedsInvitationCode,
-    reloadUserData, // Expone la función de recarga
+    reloadUserData,
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
   );
 }

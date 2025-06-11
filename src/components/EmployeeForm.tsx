@@ -1,7 +1,7 @@
-// src/components/EmployeeForm.tsx (versión corregida)
+// src/components/EmployeeForm.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Container,
   Row,
@@ -12,11 +12,17 @@ import {
   Spinner,
   Alert,
 } from "react-bootstrap";
-import { auth, db, storage } from "@/firebase/clientApp";
+import { db, storage } from "@/firebase/clientApp"; // Eliminamos auth ya que no se usa
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { FirebaseError } from "firebase/app";
-import { useAuth } from "@/components/AuthProvider"; // Importa el contexto de autenticación
+import { useAuth } from "@/components/AuthProvider";
+import type { User as FirebaseUser } from "firebase/auth";
+
+// Definimos un tipo extendido para el usuario, que incluye 'dni' opcional
+interface CustomUser extends FirebaseUser {
+  dni?: string;
+}
 
 interface PersonalData {
   nombre: string;
@@ -43,11 +49,12 @@ interface AttachedFiles {
 }
 
 const EmployeeForm: React.FC = () => {
-  const { user } = useAuth(); // Obtiene el usuario del contexto
+  // Casteamos el user para incluir el 'dni' sin errores de TS
+  const { user } = useAuth() as { user: CustomUser | null };
   const [personalData, setPersonalData] = useState<PersonalData>({
     nombre: "",
     apellido: "",
-    dni: "",
+    dni: user?.dni ?? "", // Precargamos DNI si está disponible
     cuil: "",
     fechaNacimiento: "",
     direccion: "",
@@ -74,21 +81,11 @@ const EmployeeForm: React.FC = () => {
     text: string;
   } | null>(null);
 
-  // Precargar DNI si está disponible en el usuario
-  useEffect(() => {
-    if (user?.dni) {
-      setPersonalData(prev => ({
-        ...prev,
-        dni: user.dni
-      }));
-    }
-  }, [user]);
-
   const handlePersonalDataChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = event.target;
-    setPersonalData(prev => ({
+    setPersonalData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -98,11 +95,8 @@ const EmployeeForm: React.FC = () => {
     event: React.ChangeEvent<HTMLInputElement>,
     fileType: keyof AttachedFiles
   ) => {
-    const file = event.target.files?.[0] || null;
-    setAttachedFiles(prev => ({
-      ...prev,
-      [fileType]: file,
-    }));
+    const file = event.target.files?.[0] ?? null;
+    setAttachedFiles((prev) => ({ ...prev, [fileType]: file }));
   };
 
   const uploadFile = async (
@@ -121,10 +115,9 @@ const EmployeeForm: React.FC = () => {
       uploadTask.on(
         "state_changed",
         null,
-        error => reject(error),
-        () => getDownloadURL(uploadTask.snapshot.ref)
-          .then(resolve)
-          .catch(reject)
+        (error) => reject(error),
+        () =>
+          getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject)
       );
     });
   };
@@ -146,49 +139,61 @@ const EmployeeForm: React.FC = () => {
     const userId = user.uid;
 
     try {
-      // 1. Guardar datos en una NUEVA colección: "employee-data"
+      // 1. Guardar datos en la colección "employee-data"
       const employeeDataRef = doc(db, "employee-data", userId);
-      
+
       await setDoc(employeeDataRef, {
         ...personalData,
-        userId: userId, // Relacionar con el usuario
+        userId: userId,
         submissionDate: Timestamp.now(),
       });
 
       // 2. Subir archivos y guardar URLs
       const fileUrls: Record<string, string> = {};
-      
+      const uploadPromises: Promise<void>[] = [];
+
       for (const [fileType, file] of Object.entries(attachedFiles)) {
         if (file) {
-          const url = await uploadFile(
-            file, 
-            userId, 
-            fileType as keyof AttachedFiles
+          uploadPromises.push(
+            uploadFile(file, userId, fileType as keyof AttachedFiles).then(
+              (url) => {
+                fileUrls[fileType] = url;
+              }
+            )
           );
-          fileUrls[fileType] = url;
         }
       }
 
-      // 3. Actualizar el documento con las URLs de los archivos
-      await setDoc(employeeDataRef, {
-        documentUrls: fileUrls
-      }, { merge: true });
+      // Esperar que todas las subidas terminen
+      await Promise.all(uploadPromises);
 
-      // 4. Actualizar el documento del usuario para marcar como completado
+      // 3. Actualizar con URLs de documentos
+      await setDoc(
+        employeeDataRef,
+        {
+          documentUrls: fileUrls,
+        },
+        { merge: true }
+      );
+
+      // 4. Actualizar estado en usuario
       const userRef = doc(db, "users", userId);
-      await setDoc(userRef, {
-        employeeDataCompleted: true,
-        employeeDataCompletedAt: Timestamp.now()
-      }, { merge: true });
+      await setDoc(
+        userRef,
+        {
+          employeeDataCompleted: true,
+          employeeDataCompletedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
 
       setMessage({
         type: "success",
         text: "¡Formulario completado con éxito! Tus datos han sido guardados.",
       });
-
     } catch (error) {
       console.error("Error al enviar formulario:", error);
-      
+
       let errorMessage = "Error desconocido al enviar el formulario";
       if (error instanceof FirebaseError) {
         errorMessage = `Error de Firebase (${error.code}): ${error.message}`;
@@ -224,7 +229,7 @@ const EmployeeForm: React.FC = () => {
                 Formulario de Datos del Empleado
               </Card.Title>
             </Card.Header>
-            
+
             <Card.Body>
               <Form onSubmit={handleSubmit}>
                 <fieldset disabled={isSubmitting}>
@@ -245,7 +250,7 @@ const EmployeeForm: React.FC = () => {
                             />
                           </Form.Group>
                         </Col>
-                        
+
                         <Col md={6}>
                           <Form.Group controlId="formApellido">
                             <Form.Label>Apellido</Form.Label>
@@ -258,7 +263,7 @@ const EmployeeForm: React.FC = () => {
                             />
                           </Form.Group>
                         </Col>
-                        
+
                         <Col md={4}>
                           <Form.Group controlId="formDni">
                             <Form.Label>DNI</Form.Label>
@@ -268,12 +273,87 @@ const EmployeeForm: React.FC = () => {
                               value={personalData.dni}
                               onChange={handlePersonalDataChange}
                               required
-                              readOnly={!!user?.dni} // Bloqueado si ya viene del usuario
+                              readOnly={!!user?.dni}
                             />
                           </Form.Group>
                         </Col>
-                        
-                        {/* ... (otros campos similares) ... */}
+
+                        <Col md={4}>
+                          <Form.Group controlId="formCuil">
+                            <Form.Label>CUIL</Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="cuil"
+                              value={personalData.cuil}
+                              onChange={handlePersonalDataChange}
+                              required
+                            />
+                          </Form.Group>
+                        </Col>
+
+                        <Col md={4}>
+                          <Form.Group controlId="formFechaNacimiento">
+                            <Form.Label>Fecha de Nacimiento</Form.Label>
+                            <Form.Control
+                              type="date"
+                              name="fechaNacimiento"
+                              value={personalData.fechaNacimiento}
+                              onChange={handlePersonalDataChange}
+                              required
+                            />
+                          </Form.Group>
+                        </Col>
+
+                        <Col md={8}>
+                          <Form.Group controlId="formDireccion">
+                            <Form.Label>Dirección</Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="direccion"
+                              value={personalData.direccion}
+                              onChange={handlePersonalDataChange}
+                              required
+                            />
+                          </Form.Group>
+                        </Col>
+
+                        <Col md={4}>
+                          <Form.Group controlId="formTelefono">
+                            <Form.Label>Teléfono</Form.Label>
+                            <Form.Control
+                              type="tel"
+                              name="telefono"
+                              value={personalData.telefono}
+                              onChange={handlePersonalDataChange}
+                              required
+                            />
+                          </Form.Group>
+                        </Col>
+
+                        <Col md={4}>
+                          <Form.Group controlId="formTelefonoAlternativo">
+                            <Form.Label>Teléfono Alternativo</Form.Label>
+                            <Form.Control
+                              type="tel"
+                              name="telefonoAlternativo"
+                              value={personalData.telefonoAlternativo}
+                              onChange={handlePersonalDataChange}
+                            />
+                          </Form.Group>
+                        </Col>
+
+                        <Col md={4}>
+                          <Form.Group controlId="formMail">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control
+                              type="email"
+                              name="mail"
+                              value={personalData.mail}
+                              onChange={handlePersonalDataChange}
+                              required
+                            />
+                          </Form.Group>
+                        </Col>
                       </Row>
                     </Card.Body>
                   </Card>
@@ -286,24 +366,34 @@ const EmployeeForm: React.FC = () => {
                         {Object.entries({
                           dniFile: "DNI (Frente y Dorso)",
                           carnetConducirFile: "Carnet de Conducir",
-                          analiticoSecundarioFile: "Analítico de Estudios Secundarios",
+                          analiticoSecundarioFile:
+                            "Analítico de Estudios Secundarios",
                           aptoFisicoFile: "Certificado de Apto Físico",
                           buenaConductaFile: "Certificado de Buena Conducta",
                           examenToxicologicoFile: "Examen Toxicológico",
-                          deudoresAlimentariosFile: "Certificado de No Deudor Alimentario",
-                          delitosIntegridadSexualFile: "Certificado de Delitos contra la Integridad Sexual",
-                          curriculumVitaeFile: "Curriculum Vitae"
+                          deudoresAlimentariosFile:
+                            "Certificado de No Deudor Alimentario",
+                          delitosIntegridadSexualFile:
+                            "Certificado de Delitos contra la Integridad Sexual",
+                          curriculumVitaeFile: "Curriculum Vitae",
                         }).map(([key, label]) => (
                           <Col md={6} key={key}>
                             <Form.Group>
                               <Form.Label>{label}</Form.Label>
                               <Form.Control
                                 type="file"
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                                  handleFileChange(e, key as keyof AttachedFiles)
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) =>
+                                  handleFileChange(
+                                    e as React.ChangeEvent<HTMLInputElement>,
+                                    key as keyof AttachedFiles
+                                  )
                                 }
                                 required
                               />
+                              <Form.Text className="text-muted">
+                                Formatos aceptados: PDF, JPG, PNG
+                              </Form.Text>
                             </Form.Group>
                           </Col>
                         ))}
