@@ -92,6 +92,11 @@ const Login: React.FC<LoginProps> = ({
 
       const querySnapshot = await getDocs(invitationsQuery);
 
+      console.log(
+        "Docs encontradas:",
+        querySnapshot.docs.map((d) => ({ id: d.id, data: d.data() }))
+      );
+
       if (querySnapshot.empty) {
         setMessage({
           type: "danger",

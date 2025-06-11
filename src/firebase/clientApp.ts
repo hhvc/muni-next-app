@@ -1,6 +1,6 @@
 // src/firebase/clientApp.ts
 // Importamos las funciones necesarias de los SDKs del cliente
-import { initializeApp, getApps, getApp, setLogLevel } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth"; // Para Firebase Authentication
 import { getFirestore } from "firebase/firestore"; // Para Cloud Firestore
 import { getStorage } from "firebase/storage"; // <--- ¡Importamos getStorage para Firebase Storage!
@@ -21,9 +21,6 @@ const firebaseConfig = {
 // Inicializa Firebase para el cliente
 // Asegura que la app solo se inicialice una vez en Next.js (maneja SSR)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
-setLogLevel("debug"); // Habilita logs detallados para todos los SDKs
-
 
 // Obtiene las instancias de los servicios usando la app inicializada
 const auth = getAuth(app);
