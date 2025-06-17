@@ -1,16 +1,18 @@
+// src/firebase/clientApp.ts
+
 // Importa solo los módulos necesarios del SDK de Cliente de Firebase (¡NO firebase-admin!)
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import {
   getFirestore,
   connectFirestoreEmulator,
   Firestore,
-} from "firebase/firestore"; // Asegúrate de importar connectFirestoreEmulator y Firestore
-import { getAuth, connectAuthEmulator, Auth } from "firebase/auth"; // Asegúrate de importar connectAuthEmulator y Auth
+} from "firebase/firestore";
+import { getAuth, connectAuthEmulator, Auth } from "firebase/auth"; // Importa getAuth y connectAuthEmulator
 import {
   getStorage,
   connectStorageEmulator,
   FirebaseStorage,
-} from "firebase/storage"; // Si usas Cloud Storage, importa sus partes también
+} from "firebase/storage";
 
 // La configuración de Firebase usando las variables de entorno NEXT_PUBLIC_
 const firebaseConfig = {
@@ -33,24 +35,29 @@ if (getApps().length === 0) {
 
 // Obtén las instancias de los servicios del SDK de Cliente
 const db: Firestore = getFirestore(app);
-const auth: Auth = getAuth(app);
-const storage: FirebaseStorage = getStorage(app); // Si usas Cloud Storage
+// 💡 Modificación clave: Declara 'auth' pero no la inicialices inmediatamente
+let auth: Auth | null = null;
+const storage: FirebaseStorage = getStorage(app);
 
 // 🚀 Conexión automática a los emuladores en desarrollo local 🚀
 // Verifica si la variable NEXT_PUBLIC_FIREBASE_EMULATOR está establecida a 'true'
-if (process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true") {
+// Y verifica si estamos en el navegador
+if (
+  typeof window !== "undefined" &&
+  process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true"
+) {
   console.log("🔥 Conectando al Emulator Suite 🔥");
 
   // Conecta Firestore al emulador
-  // Usa las variables de entorno FIREBASE_*_EMULATOR_HOST para obtener el host y puerto
-  // Spliteamos la cadena host:port para obtenerlos por separado
   const [firestoreHost, firestorePort] = (
     process.env.FIREBASE_FIRESTORE_EMULATOR_HOST || "localhost:8080"
   ).split(":");
   connectFirestoreEmulator(db, firestoreHost, parseInt(firestorePort, 10));
   console.log(`Firestore Emulator: http://${firestoreHost}:${firestorePort}`);
 
-  // Conecta Authentication al emulador
+  // 💡 Modificación clave: Conecta Authentication al emulador SOLO en el cliente
+  // Asegúrate de obtener la instancia 'auth' primero si aún no la tienes
+  auth = getAuth(app); // Obtén la instancia de Auth aquí, dentro del bloque cliente
   const [authHost, authPort] = (
     process.env.FIREBASE_AUTH_EMULATOR_HOST || "localhost:9099"
   ).split(":");
@@ -58,7 +65,9 @@ if (process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true") {
   console.log(`Auth Emulator: http://${authHost}:${authPort}`);
 
   // Conecta Storage al emulador (si lo usas)
-  const [storageHost, storagePort] = (process.env.FIREBASE_STORAGE_EMULATOR_HOST || 'localhost:9199').split(':');
+  const [storageHost, storagePort] = (
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST || "localhost:9199"
+  ).split(":");
   connectStorageEmulator(storage, storageHost, parseInt(storagePort, 10));
   console.log(`Storage Emulator: http://${storageHost}:${storagePort}`);
 
@@ -70,7 +79,14 @@ if (process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true") {
   // const [functionsHost, functionsPort] = (process.env.FIREBASE_FUNCTIONS_EMULATOR_HOST || 'localhost:5001').split(':');
   // connectFunctionsEmulator(functions, functionsHost, parseInt(functionsPort, 10));
   // console.log(`Functions Emulator: http://${functionsHost}:${functionsPort}`);
+} else if (typeof window !== "undefined") {
+  // 💡 Modificación clave: Obtén la instancia de Auth en el cliente aunque no uses emuladores
+  auth = getAuth(app);
 }
 
 // Exporta las instancias de los servicios para que puedan ser usadas en otros archivos de tu app
-export { app, db, auth, storage }; // Puedes exportar también la instancia de la app si la necesitas
+export { app, db, auth, storage }; // 'auth' ahora puede ser null en el servidor
+
+// Nota: serverApp.ts parece correcto para usar el SDK de Admin en el servidor.
+// El error que viste ('auth/invalid-api-key') es del SDK CLIENTE,
+// por lo que la modificación en clientApp.ts es la que debería resolverlo.
