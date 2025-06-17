@@ -18,37 +18,45 @@ import {
   where,
   getDocs,
   doc,
-  updateDoc, // <-- Necesitamos updateDoc para el historial de login de usuarios existentes
-  setDoc,
-  getDoc, // <-- ¡Importamos getDoc!
+  updateDoc, // Necesitamos updateDoc para actualizar el historial de login de usuarios existentes
+  setDoc, // Necesitamos setDoc para crear el documento del nuevo usuario
+  getDoc, // Necesitamos getDoc para verificar si el documento del usuario ya existe
   Timestamp,
-  arrayUnion, // <-- ¡Importamos arrayUnion para agregar al historial!
+  arrayUnion, // Necesitamos arrayUnion para agregar al historial de login
 } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
+// Asumimos que useAuth ahora proporciona user y reloadUserData, como discutimos
 import { useAuth } from "@/components/AuthProvider";
+// Asumimos que useFirebase proporciona la instancia db y el estado isInitialized
 import useFirebase from "@/hooks/useFirebase";
-import { useRouter } from "next/navigation"; // Asegúrate de que sea 'next/navigation' para App Router
+import { useRouter } from "next/navigation"; // Usamos useRouter para la navegación en Next.js App Router
 
 interface LoginProps {
+  // Indica si el usuario de Google ya está autenticado (viene del componente padre, ej: HomePageContent)
   isGoogleAuthenticated?: boolean;
-  onCodeValidated?: () => void; // Callback para cuando se valida un código por primera vez (lleva a EmployeeForm)
+  // Callback que se llama cuando la validación del código DNI es exitosa para un NUEVO usuario con rol 'candidate'.
+  // El componente padre (HomePageContent) lo usa para cambiar a mostrar el EmployeeForm.
+  onCodeValidated?: () => void;
+  // Callback para iniciar el flujo de login de Google (pasado desde el padre si se usa un botón aquí)
   onGoogleLoginClick?: () => void;
-  // Podrías agregar un callback opcional para usuarios existentes, ej: onUserExists?: () => void;
+  // Opcional: callback para manejar usuarios existentes si el padre necesita un comportamiento específico
+  // onUserExists?: () => void;
 }
 
 const Login: React.FC<LoginProps> = ({
   isGoogleAuthenticated = false,
   onCodeValidated,
   onGoogleLoginClick,
-  // onUserExists, // Si agregas el callback para usuarios existentes
+  // onUserExists,
 }) => {
-  // useAuth proporciona el usuario autenticado y una forma de recargar sus datos
+  // Obtenemos el usuario de Google Auth y la función para forzar la recarga de datos del documento de usuario
   const { user, reloadUserData } = useAuth();
-  // useFirebase proporciona la instancia de Firestore (db) y su estado de inicialización
+  // Obtenemos la instancia de Firestore y su estado de inicialización desde nuestro custom hook
   const { db: firestoreDb, isInitialized: firebaseInitialized } = useFirebase();
-  // useRouter para la navegación (si no hay callbacks específicos)
+  // Hook para la navegación
   const router = useRouter();
 
+  // Estados locales para el formulario y la UI
   const [dni, setDni] = useState("");
   const [invitationCode, setInvitationCode] = useState("");
   const [message, setMessage] = useState<{
@@ -56,43 +64,43 @@ const Login: React.FC<LoginProps> = ({
     text: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // Estado para rastrear si la conexión a Firebase (Firestore) está lista para usarse en este componente
   const [firebaseReady, setFirebaseReady] = useState(false);
 
-  // Effect para verificar cuando Firebase está listo
+  // Effect para verificar cuando la instancia de Firestore está lista (desde useFirebase)
   useEffect(() => {
-    // Si Firebase está inicializado CUANDO SE EJECUTA ESTE EFFECT, marcamos como listo.
-    if (firebaseInitialized) {
+    // Si la instancia de Firestore está disponible Y useFirebase reporta que está inicializado
+    if (firestoreDb && firebaseInitialized) {
       setFirebaseReady(true);
     } else {
-      // Si NO está listo CUANDO SE EJECUTA ESTE EFFECT, programamos una verificación posterior.
+      // Si no está lista inmediatamente, esperamos un poco.
       const timer = setTimeout(() => {
-        // Dentro del timeout, verificamos si firebaseReady AÚN NO HA SIDO ESTABLECIDO en true.
-        // Gracias a firebaseReady en la lista de dependencias, si el estado firebaseReady
-        // cambiara por alguna razón, este effect se re-ejecutaría con el nuevo valor.
-        // Aunque en esta lógica específica, el cambio esperado es de false a true
-        // impulsado por firebaseInitialized cambiando a true, añadir firebaseReady
-        // cumple con la regla y asegura que el callback del timeout SIEMPRE
-        // use el valor más reciente de firebaseReady si el effect se re-ejecuta.
+        // Si después del timer, el estado local 'firebaseReady' AÚN no es true, mostramos el error.
+        // Esto indica que la inicialización falló o tardó más de 1 segundo.
         if (!firebaseReady) {
           setMessage({
             type: "danger",
-            text: "Error: La conexión a Firebase no se estableció correctamente después de esperar. Por favor, recarga la página o verifica tu conexión.",
+            text: "Error: La conexión a Firebase no se estableció correctamente. Por favor, recarga la página o verifica tu conexión.",
           });
         }
+        // Si la inicialización sí ocurrió mientras el timer corría, el effect se re-ejecutó
+        // (debido a firebaseInitialized en las dependencias), setFirebaseReady(true) ya se llamó,
+        // y este timer original fue limpiado por la función de limpieza.
       }, 1000); // Esperar 1 segundo
 
       // Función de limpieza: se ejecuta ANTES de que el effect se re-ejecute (si las dependencias cambian)
-      // y cuando el componente se desmonta. Esto previene múltiples timers pendientes
-      // y asegura que el timer anterior se limpie si firebaseInitialized cambia a true.
+      // y cuando el componente se desmonta. Limpia el timer pendiente.
       return () => clearTimeout(timer);
     }
-  }, [firebaseInitialized, firebaseReady]);
+    // Dependencias del Effect: Se re-ejecuta si firestoreDb o firebaseInitialized cambian.
+    // Añadimos firebaseReady porque lo usamos en el condicional dentro del timer.
+  }, [firestoreDb, firebaseInitialized, firebaseReady]);
 
   // Maneja el envío del formulario de DNI/Código
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Previene el comportamiento por defecto del formulario
+    event.preventDefault(); // Previene el comportamiento por defecto del formulario (recargar página)
 
-    // Validaciones iniciales: conexión a Firebase, autenticación de Google, DNI/Código
+    // Validaciones iniciales: conexión a Firebase, autenticación de Google, campos del formulario
     if (!firebaseReady || !firestoreDb) {
       setMessage({
         type: "danger",
@@ -100,19 +108,22 @@ const Login: React.FC<LoginProps> = ({
       });
       return;
     }
+    // Verificamos que el usuario de Google Auth esté disponible
     if (!isGoogleAuthenticated || !user) {
-      // Esto no debería ocurrir si el componente se muestra correctamente, pero es una buena verificación de seguridad
+      // Esto indica un problema: el componente Login para DNI/Código se está mostrando
+      // pero el usuario de Google Auth no está presente.
       setMessage({
         type: "danger",
-        text: "Error interno de autenticación. Por favor, logueate de nuevo con Google.",
+        text: "Error de autenticación: No hay un usuario de Google logueado. Por favor, cierra sesión y vuelve a intentar.",
       });
       setIsLoading(false);
       return;
     }
+    // Verificamos que DNI y código hayan sido ingresados
     if (!dni || !invitationCode) {
       setMessage({
-        type: "warning",
-        text: "Por favor, ingresá tu DNI y código de invitación.",
+        type: "warning", // Usamos warning porque no es un error fatal, solo falta input
+        text: "Por favor, ingresá tu DNI y código de invitación para continuar.",
       });
       setIsLoading(false);
       return;
@@ -122,32 +133,29 @@ const Login: React.FC<LoginProps> = ({
     setMessage(null); // Limpia mensajes previos
 
     try {
-      // 1. Referencia al documento potencial del usuario en Firestore basado en su UID de Google Auth
+      // 1. Obtener referencia al documento POTENCIAL del usuario en Firestore basado en su UID de Google Auth
       const userDocRef = doc(firestoreDb, "users", user.uid);
       // Intentamos obtener el documento para saber si ya existe
       const userDocSnap = await getDoc(userDocRef);
 
-      const loginTimestamp = Timestamp.now(); // Capturamos la hora actual para usarla
+      const loginTimestamp = Timestamp.now(); // Capturamos la hora actual para usarla en el historial/último login
 
       // 2. Verificar si el documento del usuario YA existe en Firestore
       if (userDocSnap.exists()) {
-        // Si el usuario existe, significa que ya validó un código antes y creó su documento de usuario.
-        // No necesitamos validar DNI/Código de nuevo en este flujo (asumimos que el DNI/Código en el formulario
-        // son los que ya usó, aunque esta lógica no los usa en este path).
-        // Simplemente actualizamos su historial de login.
+        // Si el usuario existe, significa que ya completó el proceso de registro inicial (validó código y creó userDoc).
+        // Ahora solo actualizamos su historial de login y lo tratamos como un "re-ingreso".
         console.log(
           `Usuario existente ${user.uid} detectado. Actualizando historial de login.`
         );
 
+        // Actualiza el documento del usuario existente con el nuevo timestamp de login
         await updateDoc(userDocRef, {
-          // Usa arrayUnion para añadir el timestamp actual al array loginHistory.
-          // arrayUnion es la forma recomendada de añadir elementos a un array sin sobreescribirlo
-          // y maneja casos donde el campo loginHistory podría no existir aún.
+          // Usa arrayUnion para añadir el timestamp actual al array loginHistory de forma segura.
           loginHistory: arrayUnion(loginTimestamp),
-          // Opcional: actualizar también un campo específico de último login
+          // Actualiza el campo específico de último login.
           lastLoginAt: loginTimestamp,
-          // Puedes actualizar otros campos si es necesario en logins posteriores, ej:
-          email: user.email, // Asegurarse de tener el email más reciente de Google Auth
+          // Opcional: actualizar otros campos del perfil de usuario Auth si cambiaron (ej: foto de perfil)
+          email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
           // Nota: No actualizamos DNI/invitationCode aquí, ya que se supone que son fijos después del primer registro.
@@ -155,48 +163,49 @@ const Login: React.FC<LoginProps> = ({
 
         console.log(`Historial de login actualizado para usuario ${user.uid}.`);
 
-        // Recargar los datos del usuario en el hook de autenticación si reloadUserData está disponible.
-        // Esto podría actualizar el estado local si useAuth expone más datos del documento de usuario.
+        // Recargar los datos del usuario en el hook useAuth. Esto es importante si tu hook lee
+        // el documento de usuario para obtener el rol u otros datos y el padre depende de ellos.
+        // reloadUserData en useAuth debería forzar el re-fetch del documento de usuario.
         if (reloadUserData) {
           await reloadUserData();
         }
 
-        // 3. Lógica para usuarios existentes: Notificar y Redirigir
-        // Mostramos un mensaje de bienvenida.
+        // 3. Lógica para usuarios existentes: Notificar y Redirigir a la página principal.
         setMessage({
           type: "success",
           text: "¡Bienvenido de nuevo! Accediendo...",
         });
 
-        // Decide qué hacer aquí para usuarios existentes:
-        // Si tienes una ruta por defecto para usuarios ya validados (ej: el dashboard principal), redirige:
+        // Redirige a la página principal por defecto para usuarios que re-ingresan.
+        // El componente padre (HomePageContent) decidirá la vista final basándose en el rol cargado.
         router.push("/");
-        // O si esperas que un componente padre maneje esto con un callback (si agregaste onUserExists):
+
+        // Si esperabas que un componente padre manejara esto con un callback (si agregaste onUserExists):
         // if (onUserExists) {
         //     onUserExists(); // Llama al callback, ej: para mostrar el dashboard directamente
         // } else {
-        //     router.push("/"); // Opción de fallback si no hay callback
+        //     router.push("/"); // Opción de fallback
         // }
       } else {
         // Si el documento del usuario NO existe, significa que es la PRIMERA vez que este usuario de Google
-        // está validando un código. Procedemos con la validación DNI/Código para REGISTRO.
+        // intenta validar un código para REGISTRAR su cuenta en Firestore.
         console.log(
           `Usuario nuevo ${user.uid}. Procediendo a validar DNI/Código para registro inicial.`
         );
 
-        // 4. Consultar la colección de invitaciones para encontrar una invitación válida para registro
+        // 4. Consultar la colección de invitaciones para encontrar una invitación válida para este registro inicial
         const invitationsCollection = collection(
           firestoreDb,
           "candidateInvitations"
         );
-        // Buscamos una invitación que coincida exactamente con DNI y Código,
-        // Y que NO haya sido usada AUN para crear un documento de usuario.
-        // La condición `used == false` es la correcta aquí.
+        // Buscamos una invitación que coincida exactamente con el DNI y Código ingresados,
+        // Y que NO haya sido usada AUN para crear UN DOCUMENTO DE USUARIO.
+        // La condición `used == false` aquí es crucial para este flujo de registro inicial.
         const invitationsQuery = query(
           invitationsCollection,
           where("dni", "==", dni),
           where("code", "==", invitationCode),
-          where("used", "==", false)
+          where("used", "==", false) // Solo buscamos invitaciones con used: false para el registro inicial
         );
 
         const querySnapshot = await getDocs(invitationsQuery);
@@ -204,7 +213,7 @@ const Login: React.FC<LoginProps> = ({
         // 5. Verificar si se encontró EXACTAMENTE una invitación válida y no usada para registro
         if (querySnapshot.empty) {
           // Si la consulta no devuelve documentos, el DNI/código es incorrecto,
-          // o la invitación ya se usó para crear un documento de usuario previamente.
+          // o la invitación ya se usó previamente para crear UN DOCUMENTO DE USUARIO.
           setMessage({
             type: "danger",
             text: "DNI o código incorrectos, o la invitación ya fue utilizada para completar un registro.",
@@ -213,19 +222,28 @@ const Login: React.FC<LoginProps> = ({
           return; // Salimos de la función
         }
 
-        // Si llegamos aquí, encontramos una invitación válida y que no ha sido usada para un registro.
+        // Si llegamos aquí, encontramos una invitación válida y que NO ha sido usada para crear un userDoc.
+        // Esta es la invitación que utilizaremos para crear el documento del NUEVO usuario.
         console.log("Invitación válida encontrada para un nuevo registro.");
-        const invitationDoc = querySnapshot.docs[0];
+        const invitationDoc = querySnapshot.docs[0]; // Obtenemos el primer documento que coincide (debería ser único)
         const invitationId = invitationDoc.id; // Guardamos el ID del documento de invitación
+        const invitationData = invitationDoc.data(); // Obtenemos los datos completos de la invitación
 
-        // 6. Crear el NUEVO documento del usuario en la colección 'users' con los datos iniciales
+        // 6. Determinar el rol para el nuevo usuario a partir de los datos de la invitación
+        // Si la invitación tiene un campo 'role', lo usamos; de lo contrario, por defecto es 'candidate'.
+        const roleFromInvitation = invitationData?.role || "candidate";
+        console.log(
+          `Rol determinado para el nuevo usuario: ${roleFromInvitation}`
+        );
+
+        // 7. Crear el NUEVO documento del usuario en la colección 'users' con los datos iniciales
         // Usamos setDoc con merge: false (comportamiento por defecto si no existe)
-        // Esto crea el documento si no existe. Si por alguna razón inesperada ya existiera, lo reemplaza.
+        // Esto crea el documento si no existe. Si por alguna razón inesperada ya existiera, lo reemplaza (raro en este flujo).
         const newUserData = {
           dni: dni, // Guardamos el DNI proporcionado en este primer registro
           invitationCode: invitationCode, // Guardamos el código usado
           invitationDocId: invitationId, // Opcional: Guardar una referencia al documento de invitación
-          role: "candidate", // Establecemos el rol inicial de 'candidate'
+          role: roleFromInvitation, // ✅ Usamos el rol determinado de la invitación o el por defecto
           email: user.email, // Guardamos la información del usuario de Google Auth
           displayName: user.displayName,
           photoURL: user.photoURL,
@@ -239,39 +257,49 @@ const Login: React.FC<LoginProps> = ({
 
         await setDoc(userDocRef, newUserData);
         console.log(
-          `Nuevo documento de usuario ${user.uid} creado con datos iniciales.`
+          `Nuevo documento de usuario ${user.uid} creado con datos iniciales. Rol: ${roleFromInvitation}`
         );
 
-        // Recargar los datos del usuario en el hook useAuth para tener la info del documento 'users'
-        // Esto es importante si tu hook useAuth lee datos del documento de usuario en Firestore.
+        // Recargar los datos del usuario en el hook useAuth. Esto es fundamental
+        // para que el componente padre (HomePageContent) detecte el nuevo documento
+        // de usuario y su rol, y decida la vista apropiada (EmployeeForm o redirigir).
         if (reloadUserData) {
           await reloadUserData();
         }
 
-        // 7. Lógica para nuevos usuarios (primera validación): Notificar y proceder al EmployeeForm
-        // Mostramos un mensaje indicando que la validación fue exitosa y que procede al formulario.
-        setMessage({
-          type: "success",
-          text: "Código validado. Por favor, completa tus datos.",
-        });
+        // 8. Lógica para nuevos usuarios (primera validación): Comportamiento condicional basado en el rol
+        if (roleFromInvitation === "candidate") {
+          // Si el nuevo usuario es un 'candidate', se le muestra un mensaje y se llama al callback
+          // para que el componente padre cambie a mostrar el EmployeeForm.
+          setMessage({
+            type: "success",
+            text: "Código validado. Por favor, completa tus datos.",
+          });
 
-        // ✨ Llama al callback onCodeValidated para que el componente padre cambie a mostrar el EmployeeForm.
-        // NO marcamos la invitación como 'used' en la colección 'candidateInvitations' aquí.
-        // Eso debería hacerse DESPUÉS de que el usuario complete y guarde el EmployeeForm.
-        if (onCodeValidated) {
-          onCodeValidated(); // Llama al callback para mostrar el EmployeeForm
+          // Llama al callback onCodeValidated para que el componente padre renderice el EmployeeForm
+          if (onCodeValidated) {
+            onCodeValidated();
+          } else {
+            // Fallback: Si no se proporciona onCodeValidated, redirigimos a inicio (quizás no deseado)
+            console.warn(
+              "Login: onCodeValidated callback not provided for new candidate. Defaulting to redirect."
+            );
+            router.push("/");
+          }
         } else {
-          // Si onCodeValidated no se proporciona (ej: no hay EmployeeForm a continuación en este flujo),
-          // podrías redirigir a una página de "Bienvenido, ahora completa tu perfil" o similar.
-          // Considera si este es el comportamiento deseado.
-          console.warn(
-            "Login: onCodeValidated callback not provided. Defaulting to redirect."
-          );
-          router.push("/"); // Redirige a la página principal por defecto
+          // Para CUALQUIER otro rol (distinto de 'candidate'), mostramos un mensaje de bienvenida
+          // con su rol asignado y redirigimos directamente a la página principal.
+          setMessage({
+            type: "success",
+            text: `¡Bienvenido! Tu rol asignado es: ${roleFromInvitation}. Accediendo...`,
+          });
+
+          // No llamamos a onCodeValidated. Simplemente redirigimos.
+          router.push("/");
         }
       }
     } catch (error: unknown) {
-      // Manejo general de errores (Firestore, red, etc.)
+      // Manejo general de errores (Firestore, red, etc.) durante el proceso de login/validación
       console.error("Error durante el proceso de login/validación:", error);
 
       let errorMessage = "Ha ocurrido un error inesperado durante el proceso.";
@@ -290,11 +318,11 @@ const Login: React.FC<LoginProps> = ({
         text: errorMessage,
       });
     } finally {
-      setIsLoading(false); // Finaliza el estado de carga
+      setIsLoading(false); // Finaliza el estado de carga, independientemente del éxito o error
     }
   };
 
-  // Renderiza un spinner mientras Firebase se inicializa
+  // Renderiza un spinner mientras la instancia de Firestore se inicializa en este componente
   if (!firebaseReady) {
     return (
       <Container className="text-center my-5">
@@ -305,7 +333,8 @@ const Login: React.FC<LoginProps> = ({
     );
   }
 
-  // Renderiza el formulario DNI/Código o el botón de Google Login
+  // Renderiza el formulario DNI/Código si el usuario de Google está autenticado,
+  // o el botón de Google Login si no lo está.
   return (
     <Container className="mt-5">
       <Row className="justify-content-md-center">
@@ -412,6 +441,6 @@ const Login: React.FC<LoginProps> = ({
       </Row>
     </Container>
   );
-};
+}; // <-- Cierre de la función del componente Login
 
-export default Login;
+export default Login; // <-- Exportación por defecto
