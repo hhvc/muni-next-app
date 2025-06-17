@@ -19,7 +19,7 @@
     "serve": "npm run build && npm run export && firebase emulators:start",
     "serve:dev": "next dev",
     "emulate:full": "concurrently \"npm run dev\" \"firebase emulators:start --import=./emulator-data --export-on-exit\"",
-    "emulate:dev": "firebase emulators:start --only functions,firestore,auth --config firebase-emulators.json"
+    "emulate:dev": "firebase emulators:start --only functions,firestore,auth, storage --config firebase-emulators.json"
   },
   "dependencies": {
     "bootstrap": "^5.3.6",
