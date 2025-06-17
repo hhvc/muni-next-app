@@ -1,7 +1,6 @@
-// src/components/EmployeeForm.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -12,14 +11,14 @@ import {
   Spinner,
   Alert,
 } from "react-bootstrap";
-import { db, storage } from "@/firebase/clientApp"; // Eliminamos auth ya que no se usa
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { db, storage } from "@/firebase/clientApp";
+import { doc, setDoc, updateDoc, Timestamp, getDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/components/AuthProvider";
 import type { User as FirebaseUser } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
-// Definimos un tipo extendido para el usuario, que incluye 'dni' opcional
 interface CustomUser extends FirebaseUser {
   dni?: string;
 }
@@ -36,25 +35,44 @@ interface PersonalData {
   mail: string;
 }
 
-interface AttachedFiles {
-  dniFile: File | null;
-  carnetConducirFile: File | null;
-  analiticoSecundarioFile: File | null;
-  aptoFisicoFile: File | null;
-  buenaConductaFile: File | null;
-  examenToxicologicoFile: File | null;
-  deudoresAlimentariosFile: File | null;
-  delitosIntegridadSexualFile: File | null;
-  curriculumVitaeFile: File | null;
+interface DocumentUrls {
+  dniFile?: string;
+  carnetConducirFile?: string;
+  analiticoSecundarioFile?: string;
+  aptoFisicoFile?: string;
+  buenaConductaFile?: string;
+  examenToxicologicoFile?: string;
+  deudoresAlimentariosFile?: string;
+  delitosIntegridadSexualFile?: string;
+  curriculumVitaeFile?: string;
 }
 
-const EmployeeForm: React.FC = () => {
-  // Casteamos el user para incluir el 'dni' sin errores de TS
+interface EmployeeData {
+  personalData: PersonalData;
+  documentUrls?: DocumentUrls;
+  status: "draft" | "completed";
+  userId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  submittedAt?: Timestamp;
+}
+
+interface EmployeeFormProps {
+  invitationId: string;
+  userId: string;
+}
+
+const EmployeeForm: React.FC<EmployeeFormProps> = ({
+  invitationId,
+  userId,
+}) => {
+  const router = useRouter();
   const { user } = useAuth() as { user: CustomUser | null };
+
   const [personalData, setPersonalData] = useState<PersonalData>({
     nombre: "",
     apellido: "",
-    dni: user?.dni ?? "", // Precargamos DNI si está disponible
+    dni: user?.dni ?? "",
     cuil: "",
     fechaNacimiento: "",
     direccion: "",
@@ -63,7 +81,9 @@ const EmployeeForm: React.FC = () => {
     mail: "",
   });
 
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFiles>({
+  const [attachedFiles, setAttachedFiles] = useState<
+    Record<string, File | null>
+  >({
     dniFile: null,
     carnetConducirFile: null,
     analiticoSecundarioFile: null,
@@ -75,12 +95,71 @@ const EmployeeForm: React.FC = () => {
     curriculumVitaeFile: null,
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingData, setExistingData] = useState<EmployeeData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{
-    type: "success" | "danger";
+    type: "success" | "danger" | "info" | "warning";
     text: string;
   } | null>(null);
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
+  // Inicializar y cargar datos existentes
+  useEffect(() => {
+    const initialize = async () => {
+      if (!db || !storage) {
+        console.warn("Firebase no está inicializado, reintentando...");
+        const timer = setTimeout(() => {
+          if (db && storage) {
+            setFirebaseReady(true);
+          } else {
+            setMessage({
+              type: "danger",
+              text: "Error: Firebase no se inicializó. Por favor recarga la página.",
+            });
+          }
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+
+      setFirebaseReady(true);
+
+      try {
+        const employeeDataRef = doc(db, "employee-data", userId);
+        const employeeSnap = await getDoc(employeeDataRef);
+
+        if (employeeSnap.exists()) {
+          const data = employeeSnap.data() as EmployeeData;
+          setExistingData(data);
+          setPersonalData(data.personalData);
+
+          if (data.status === "completed") {
+            setMessage({
+              type: "info",
+              text: "Ya has completado este formulario. No puedes realizar cambios.",
+            });
+          } else {
+            setMessage({
+              type: "info",
+              text: "Se cargó un borrador existente. Puedes continuar editando.",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        setMessage({
+          type: "warning",
+          text: "No se pudieron cargar datos existentes, pero puedes continuar.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initialize();
+  }, [userId]);
+
+  // Corrección: Cambié el tipo de evento a React.ChangeEvent<HTMLInputElement>
   const handlePersonalDataChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -93,20 +172,141 @@ const EmployeeForm: React.FC = () => {
 
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
-    fileType: keyof AttachedFiles
+    fileType: string
   ) => {
     const file = event.target.files?.[0] ?? null;
     setAttachedFiles((prev) => ({ ...prev, [fileType]: file }));
   };
 
+  const saveEmployeeData = async (status: "draft" | "completed") => {
+    if (!firebaseReady || !db || !storage) {
+      setMessage({
+        type: "danger",
+        text: "Firebase no está inicializado. No se pudo guardar.",
+      });
+      return false;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const employeeDataRef = doc(db, "employee-data", userId);
+      const now = Timestamp.now();
+
+      const dataToSave: Partial<EmployeeData> = {
+        personalData,
+        status,
+        userId,
+        updatedAt: now,
+      };
+
+      // Solo para borradores iniciales
+      if (!existingData) {
+        dataToSave.createdAt = now;
+      }
+
+      // Subir archivos solo cuando se completa
+      if (status === "completed") {
+        const fileUrls: DocumentUrls = {};
+        let hasFiles = false;
+
+        for (const [fileType, file] of Object.entries(attachedFiles)) {
+          if (file) {
+            const url = await uploadFile(file, userId, fileType);
+            fileUrls[fileType as keyof DocumentUrls] = url;
+            hasFiles = true;
+          }
+        }
+
+        // Verificar que se subieron archivos si es envío final
+        if (!hasFiles && !existingData?.documentUrls) {
+          throw new Error("Debes subir todos los documentos requeridos");
+        }
+
+        dataToSave.documentUrls = {
+          ...existingData?.documentUrls,
+          ...fileUrls,
+        };
+        dataToSave.submittedAt = now;
+      }
+
+      await setDoc(employeeDataRef, dataToSave, { merge: true });
+
+      // Marcar invitación como usada solo cuando se completa
+      if (status === "completed") {
+        const invitationRef = doc(db, "candidateInvitations", invitationId);
+        await updateDoc(invitationRef, {
+          used: true,
+          usedAt: now,
+          usedBy: userId,
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Error guardando (${status}):`, error);
+
+      let errorMessage = `Error al guardar como ${
+        status === "draft" ? "borrador" : "completado"
+      }`;
+      if (error instanceof FirebaseError) {
+        errorMessage += ` (${error.code}): ${error.message}`;
+      } else if (error instanceof Error) {
+        errorMessage += `: ${error.message}`;
+      }
+
+      setMessage({ type: "danger", text: errorMessage });
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    const success = await saveEmployeeData("draft");
+    if (success) {
+      setMessage({
+        type: "success",
+        text: "Borrador guardado exitosamente. Puedes continuar más tarde.",
+      });
+      // Actualizar estado existente
+      setExistingData({
+        ...(existingData || ({} as EmployeeData)),
+        personalData,
+        status: "draft",
+        userId,
+        updatedAt: Timestamp.now(),
+        createdAt: existingData?.createdAt || Timestamp.now(),
+      });
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const success = await saveEmployeeData("completed");
+    if (success) {
+      setMessage({
+        type: "success",
+        text: "¡Formulario enviado con éxito! Redirigiendo...",
+      });
+
+      setTimeout(() => {
+        router.push("/confirmation");
+      }, 2000);
+    }
+  };
+
   const uploadFile = async (
     file: File,
     userId: string,
-    fileType: keyof AttachedFiles
+    fileType: string
   ): Promise<string> => {
+    const fileName = `${Date.now()}-${file.name}`;
     const storageRef = ref(
       storage,
-      `employee-documents/${userId}/${fileType}/${file.name}`
+      `employee-documents/${userId}/${fileType}/${fileName}`
     );
 
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -116,123 +316,87 @@ const EmployeeForm: React.FC = () => {
         "state_changed",
         null,
         (error) => reject(error),
-        () =>
-          getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject)
+        async () => {
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          } catch (error) {
+            reject(error);
+          }
+        }
       );
     });
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setMessage(null);
+  // Mostrar spinner si está cargando
+  if (isLoading) {
+    return (
+      <Container className="text-center my-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Cargando formulario...</p>
+      </Container>
+    );
+  }
 
-    if (!user) {
-      setMessage({
-        type: "danger",
-        text: "Error: Usuario no autenticado. Por favor, vuelve a iniciar sesión.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    const userId = user.uid;
-
-    try {
-      // 1. Guardar datos en la colección "employee-data"
-      const employeeDataRef = doc(db, "employee-data", userId);
-
-      await setDoc(employeeDataRef, {
-        ...personalData,
-        userId: userId,
-        submissionDate: Timestamp.now(),
-      });
-
-      // 2. Subir archivos y guardar URLs
-      const fileUrls: Record<string, string> = {};
-      const uploadPromises: Promise<void>[] = [];
-
-      for (const [fileType, file] of Object.entries(attachedFiles)) {
-        if (file) {
-          uploadPromises.push(
-            uploadFile(file, userId, fileType as keyof AttachedFiles).then(
-              (url) => {
-                fileUrls[fileType] = url;
-              }
-            )
-          );
-        }
-      }
-
-      // Esperar que todas las subidas terminen
-      await Promise.all(uploadPromises);
-
-      // 3. Actualizar con URLs de documentos
-      await setDoc(
-        employeeDataRef,
-        {
-          documentUrls: fileUrls,
-        },
-        { merge: true }
-      );
-
-      // 4. Actualizar estado en usuario
-      const userRef = doc(db, "users", userId);
-      await setDoc(
-        userRef,
-        {
-          employeeDataCompleted: true,
-          employeeDataCompletedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
-
-      setMessage({
-        type: "success",
-        text: "¡Formulario completado con éxito! Tus datos han sido guardados.",
-      });
-    } catch (error) {
-      console.error("Error al enviar formulario:", error);
-
-      let errorMessage = "Error desconocido al enviar el formulario";
-      if (error instanceof FirebaseError) {
-        errorMessage = `Error de Firebase (${error.code}): ${error.message}`;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      setMessage({
-        type: "danger",
-        text: errorMessage,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Si ya está completado, mostrar mensaje
+  if (existingData?.status === "completed") {
+    return (
+      <Container className="mt-5">
+        <Row className="justify-content-md-center">
+          <Col md={8}>
+            <Card className="text-center border-success">
+              <Card.Header className="bg-success text-white">
+                <Card.Title>Formulario Completado</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <Card.Text>
+                  Ya has completado este formulario. No se permiten más
+                  modificaciones.
+                </Card.Text>
+                <Card.Text>
+                  <small className="text-muted">
+                    Enviado el:{" "}
+                    {existingData.submittedAt?.toDate().toLocaleDateString()}
+                  </small>
+                </Card.Text>
+                <Button variant="primary" onClick={() => router.push("/")}>
+                  Volver al inicio
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
 
   return (
     <Container className="mt-5 mb-5">
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
-
-      {isSubmitting && (
-        <div className="text-center my-4">
-          <Spinner animation="border" />
-          <p className="mt-2">Guardando tus datos...</p>
-        </div>
+      {message && (
+        <Alert variant={message.type} className="mt-3">
+          {message.text}
+        </Alert>
       )}
 
       <Row className="justify-content-md-center">
         <Col lg={10}>
           <Card className="shadow">
-            <Card.Header className="bg-primary text-white">
+            <Card.Header
+              className={`bg-${existingData ? "info" : "primary"} text-white`}
+            >
               <Card.Title className="text-center mb-0 py-2">
-                Formulario de Datos del Empleado
+                {existingData ? "Continuar Formulario" : "Nuevo Formulario"}
+                {existingData && (
+                  <span className="badge bg-warning text-dark ms-2">
+                    Borrador Guardado
+                  </span>
+                )}
               </Card.Title>
             </Card.Header>
 
             <Card.Body>
               <Form onSubmit={handleSubmit}>
-                <fieldset disabled={isSubmitting}>
+                <fieldset disabled={isSaving}>
                   {/* Sección de Datos Personales */}
                   <Card className="mb-4">
                     <Card.Header as="h5">Datos Personales</Card.Header>
@@ -386,14 +550,40 @@ const EmployeeForm: React.FC = () => {
                                 onChange={(e) =>
                                   handleFileChange(
                                     e as React.ChangeEvent<HTMLInputElement>,
-                                    key as keyof AttachedFiles
+                                    key
                                   )
                                 }
-                                required
+                                required={
+                                  !existingData?.documentUrls?.[
+                                    key as keyof DocumentUrls
+                                  ]
+                                }
                               />
                               <Form.Text className="text-muted">
-                                Formatos aceptados: PDF, JPG, PNG
+                                {existingData?.documentUrls?.[
+                                  key as keyof DocumentUrls
+                                ]
+                                  ? "Documento ya subido. Seleccione solo para actualizar"
+                                  : "Requerido para envío definitivo"}
                               </Form.Text>
+                              {existingData?.documentUrls?.[
+                                key as keyof DocumentUrls
+                              ] && (
+                                <div className="mt-1">
+                                  <a
+                                    href={
+                                      existingData.documentUrls[
+                                        key as keyof DocumentUrls
+                                      ]
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-success"
+                                  >
+                                    Ver documento subido
+                                  </a>
+                                </div>
+                              )}
                             </Form.Group>
                           </Col>
                         ))}
@@ -401,20 +591,30 @@ const EmployeeForm: React.FC = () => {
                     </Card.Body>
                   </Card>
 
-                  <div className="text-center mt-4">
+                  <div className="d-flex justify-content-between mt-4">
                     <Button
-                      variant="primary"
-                      size="lg"
-                      type="submit"
-                      disabled={isSubmitting}
+                      variant="outline-primary"
+                      onClick={handleSaveDraft}
+                      disabled={isSaving}
                     >
-                      {isSubmitting ? (
+                      {isSaving ? (
+                        <>
+                          <Spinner size="sm" className="me-2" />
+                          Guardando...
+                        </>
+                      ) : (
+                        "Guardar Borrador"
+                      )}
+                    </Button>
+
+                    <Button variant="primary" type="submit" disabled={isSaving}>
+                      {isSaving ? (
                         <>
                           <Spinner size="sm" className="me-2" />
                           Enviando...
                         </>
                       ) : (
-                        "Guardar Datos Completos"
+                        "Enviar Definitivamente"
                       )}
                     </Button>
                   </div>

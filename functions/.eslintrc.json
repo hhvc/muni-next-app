@@ -1,0 +1,10 @@
+{
+    "rules": {
+        "operator-linebreak": ["error", "after", {
+            "overrides": {
+                "?": "before",
+                ":": "before"
+            }
+        }]
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "root": true,
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "linebreak-style": ["error", "windows"],
+    "quotes": ["error", "double"],
+    "indent": ["error", 2]
+  }
+}

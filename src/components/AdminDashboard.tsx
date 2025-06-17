@@ -1,3 +1,4 @@
+// src/components/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -7,84 +8,196 @@ import {
   Form,
   Button,
   InputGroup,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
-// Importamos Firestore para obtener los datos de los candidatos más adelante
-// import { db } from '../firebase';
-// Importamos funciones de Firestore para consultas (necesarias para la búsqueda)
-// import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db } from "@/firebase/clientApp";
+import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
 
 interface Candidato {
-  id: string; // ID del documento en Firestore
+  id: string;
   nombre: string;
   apellido: string;
   dni: string;
-  // Agrega aquí el resto de los campos personales que vas a mostrar en la tabla
   mail: string;
   telefono: string;
-  // ...
-  // Puedes agregar un campo para indicar si adjuntaron todos los archivos, etc.
+  createdAt: Date | null;
 }
 
 const AdminDashboard: React.FC = () => {
-  // Estado para almacenar la lista de candidatos
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
-  // Estado para el término de búsqueda
   const [searchTerm, setSearchTerm] = useState("");
-  // Estado para el campo de búsqueda seleccionado (DNI, Nombre, Apellido)
-  const [searchField, setSearchField] = useState("dni"); // Valor por defecto
+  const [searchField, setSearchField] = useState<keyof Candidato>("dni");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDbInitialized, setIsDbInitialized] = useState(false);
 
-  // TODO: Implementar lógica para cargar candidatos desde Firestore cuando el componente se monte
+  // Verificar inicialización de Firebase
   useEffect(() => {
-    // Aquí iría la llamada a Firebase Firestore para obtener la lista inicial de candidatos
-    // Una consulta básica podría ser: query(collection(db, "candidatos"), orderBy("apellido"));
-    // Los resultados se guardarían en el estado `candidatos` usando `setCandidatos`.
-    // Por ahora, usaremos datos dummy para que veas la tabla.
+    if (db) {
+      setIsDbInitialized(true);
+    } else {
+      const intervalId = setInterval(() => {
+        if (db) {
+          setIsDbInitialized(true);
+          clearInterval(intervalId);
+        }
+      }, 500);
 
-    const dummyCandidatos: Candidato[] = [
-      {
-        id: "1",
-        nombre: "Juan",
-        apellido: "Perez",
-        dni: "12345678",
-        mail: "juan.p@example.com",
-        telefono: "111-222",
-      },
-      {
-        id: "2",
-        nombre: "Maria",
-        apellido: "Gomez",
-        dni: "87654321",
-        mail: "maria.g@example.com",
-        telefono: "333-444",
-      },
-      // Agrega más datos dummy si quieres probar el scroll o la búsqueda con datos locales
-    ];
-    setCandidatos(dummyCandidatos);
-  }, []); // El array vacío [] asegura que este efecto se ejecute solo una vez al montar
+      const timeoutId = setTimeout(() => {
+        clearInterval(intervalId);
+        if (!db) {
+          setError("Firebase no se inicializó en el tiempo esperado");
+        }
+      }, 10000);
 
-  // TODO: Implementar lógica para buscar candidatos en Firestore
-  const handleSearch = async () => {
-    console.log(`Buscando "${searchTerm}" por "${searchField}"`);
-    // Aquí iría la lógica para hacer una consulta a Firestore filtrando por searchField y searchTerm.
-    // Ejemplo: query(collection(db, "candidatos"), where(searchField, "==", searchTerm));
-    // Actualiza el estado `candidatos` con los resultados de la búsqueda.
+      return () => {
+        clearInterval(intervalId);
+        clearTimeout(timeoutId);
+      };
+    }
+  }, []);
 
-    // Lógica de filtrado simple en memoria para datos dummy (QUITAR CUANDO USES FIRESTORE)
-    const filtered = candidatos.filter((c) =>
-      c[searchField as keyof Candidato]
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    );
-    setCandidatos(filtered); // Esto filtrará los datos dummy
-  };
+  // Cargar candidatos desde Firestore
+  useEffect(() => {
+    const fetchCandidatos = async () => {
+      if (!isDbInitialized || !db) return;
 
-  // TODO: Implementar lógica para descargar la tabla
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Construir consulta base
+        let q;
+        if (searchTerm) {
+          // Búsqueda parcial: usamos >= y <= para simular 'contiene'
+          q = query(
+            collection(db, "candidatos"),
+            where(searchField, ">=", searchTerm),
+            where(searchField, "<=", searchTerm + "\uf8ff"),
+            orderBy(searchField)
+          );
+        } else {
+          q = query(collection(db, "candidatos"), orderBy("apellido"));
+        }
+
+        const querySnapshot = await getDocs(q);
+        const candidatosData: Candidato[] = [];
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          candidatosData.push({
+            id: doc.id,
+            nombre: data.nombre || "",
+            apellido: data.apellido || "",
+            dni: data.dni || "",
+            mail: data.mail || "",
+            telefono: data.telefono || "",
+            createdAt: data.createdAt?.toDate() || null,
+          });
+        });
+
+        setCandidatos(candidatosData);
+      } catch (err) {
+        console.error("Error cargando candidatos:", err);
+
+        let errorMessage = "Error al cargar los candidatos";
+        if (err instanceof FirebaseError) {
+          errorMessage += `: ${err.message}`;
+        } else if (err instanceof Error) {
+          errorMessage += `: ${err.message}`;
+        }
+
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCandidatos();
+  }, [isDbInitialized, searchTerm, searchField]);
+
+  // Descargar datos como CSV
   const handleDownload = () => {
-    console.log("Descargar datos de la tabla");
-    // Aquí iría la lógica para tomar los datos actuales en el estado `candidatos`
-    // y formatearlos (por ejemplo, como CSV) para descargar.
-    // Necesitarías generar un archivo y ofrecerlo para descarga.
+    try {
+      // Encabezados
+      const headers = [
+        "#",
+        "Nombre",
+        "Apellido",
+        "DNI",
+        "Email",
+        "Teléfono",
+        "Fecha de Registro",
+      ];
+
+      // Datos
+      const rows = candidatos.map((candidato, index) => [
+        (index + 1).toString(),
+        `"${candidato.nombre}"`,
+        `"${candidato.apellido}"`,
+        `"${candidato.dni}"`,
+        `"${candidato.mail}"`,
+        `"${candidato.telefono}"`,
+        `"${candidato.createdAt?.toLocaleDateString() || "N/A"}"`,
+      ]);
+
+      // Crear contenido CSV
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.join(",")),
+      ].join("\n");
+
+      // Crear blob y descargar
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute("href", url);
+      link.setAttribute("download", "candidatos.csv");
+      link.style.visibility = "hidden";
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error generando CSV:", error);
+      setError("Error al generar el archivo de descarga");
+    }
   };
+
+  // Ver detalles del candidato
+  const handleViewDetails = (candidatoId: string) => {
+    console.log("Ver detalles del candidato:", candidatoId);
+    // Aquí implementarías la navegación a la página de detalles
+  };
+
+  // Manejar errores de inicialización
+  if (error) {
+    return (
+      <Container className="mt-5">
+        <Alert variant="danger">
+          <strong>Error:</strong> {error}
+          <div className="mt-3">
+            <Button variant="primary" onClick={() => window.location.reload()}>
+              Recargar página
+            </Button>
+          </div>
+        </Alert>
+      </Container>
+    );
+  }
+
+  // Si Firebase no está inicializado
+  if (!isDbInitialized) {
+    return (
+      <Container className="mt-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Inicializando base de datos...</p>
+      </Container>
+    );
+  }
 
   return (
     <Container className="mt-5">
@@ -100,50 +213,64 @@ const AdminDashboard: React.FC = () => {
           <InputGroup>
             <Form.Control
               type="text"
-              placeholder={`Buscar por ${searchField}...`}
+              placeholder={`Buscar por ${
+                searchField === "dni" ? "DNI" : searchField
+              }...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <Form.Select
               aria-label="Campo de búsqueda"
               value={searchField}
-              onChange={(e) => setSearchField(e.target.value)}
+              onChange={(e) =>
+                setSearchField(e.target.value as keyof Candidato)
+              }
             >
               <option value="dni">DNI</option>
               <option value="nombre">Nombre</option>
               <option value="apellido">Apellido</option>
+              <option value="mail">Email</option>
             </Form.Select>
-            <Button variant="primary" onClick={handleSearch}>
+            <Button variant="primary" disabled={loading}>
               Buscar
             </Button>
           </InputGroup>
         </Col>
         <Col className="d-flex justify-content-end">
-          {" "}
-          {/* Alinea el botón a la derecha */}
-          <Button variant="secondary" onClick={handleDownload}>
-            Descargar Tabla
+          <Button
+            variant="success"
+            onClick={handleDownload}
+            disabled={candidatos.length === 0 || loading}
+          >
+            <i className="bi bi-download me-2"></i>
+            Descargar CSV
           </Button>
         </Col>
       </Row>
 
+      {/* Estado de carga */}
+      {loading && (
+        <Row className="mb-3">
+          <Col className="text-center">
+            <Spinner animation="border" variant="primary" />
+            <p>Cargando candidatos...</p>
+          </Col>
+        </Row>
+      )}
+
       {/* Tabla de Candidatos */}
       <Row>
         <Col>
-          <Table striped bordered hover responsive>
-            {" "}
-            {/* responsive hace la tabla scrollable en pantallas pequeñas */}
+          <Table striped bordered hover responsive className="mt-3">
             <thead>
               <tr>
-                <th>#</th> {/* O podrías mostrar el ID si es relevante */}
+                <th>#</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>DNI</th>
-                <th>Mail</th>
+                <th>Email</th>
                 <th>Teléfono</th>
-                {/* Agrega encabezados para los otros campos personales que muestres */}
-                {/* <th>Archivos Adjuntos Completos?</th> */}
-                {/* Agrega una columna para ver/descargar archivos individuales */}
+                <th>Fecha de Registro</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -156,23 +283,24 @@ const AdminDashboard: React.FC = () => {
                   <td>{candidato.dni}</td>
                   <td>{candidato.mail}</td>
                   <td>{candidato.telefono}</td>
-                  {/* Renderiza los otros campos aquí */}
+                  <td>{candidato.createdAt?.toLocaleDateString() || "N/A"}</td>
                   <td>
-                    <Button variant="outline-info" size="sm" className="me-2">
-                      Ver Detalles
-                    </Button>{" "}
-                    {/* Para ver datos individuales */}
-                    {/* <Button variant="outline-secondary" size="sm">Descargar Archivos</Button> */}{" "}
-                    {/* Para descargar todos los archivos del candidato */}
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => handleViewDetails(candidato.id)}
+                    >
+                      <i className="bi bi-eye me-1"></i>
+                      Ver
+                    </Button>
                   </td>
                 </tr>
               ))}
-              {candidatos.length === 0 && (
+              {candidatos.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={7} className="text-center">
-                    No hay candidatos para mostrar.
-                  </td>{" "}
-                  {/* Ajusta colSpan */}
+                  <td colSpan={8} className="text-center">
+                    No se encontraron candidatos
+                  </td>
                 </tr>
               )}
             </tbody>

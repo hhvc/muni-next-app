@@ -1,109 +1,258 @@
 // src/components/HomePageContent.tsx
-"use client"; // ¡¡¡Importante: Declara que este es un Client Component!!!
+"use client";
 
-// Importa el hook personalizado para acceder al contexto de autenticación
 import { useAuth } from "@/components/AuthProvider";
-
-// Importa tus componentes de pantalla (Client Components o componentes sin estado)
+import useFirebase from "@/hooks/useFirebase";
 import GoogleSignInPage from "./GoogleSignInPage";
 import Login from "./Login";
 import EmployeeForm from "./EmployeeForm";
 import AdminDashboard from "./AdminDashboard";
+import LoadingSpinner from "./LoadingSpinner";
+import ErrorMessage from "./ErrorMessage";
+import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { Container, Row, Col, Card } from "react-bootstrap";
 
-// Importa componentes simples para carga y error (si los creaste como archivos separados)
-import LoadingSpinner from "./LoadingSpinner"; // Asegúrate de que esta ruta sea correcta
-import ErrorMessage from "./ErrorMessage"; // Asegúrate de que esta ruta sea correcta
+interface UserData {
+  role: string;
+  invitationDocId?: string;
+}
 
-// =============================================================================
-// Componente Principal para Contenido Condicional de la Página Home
-// =============================================================================
+interface InvitationData {
+  used: boolean;
+  expirationDate?: Date;
+}
+
 export default function HomePageContent() {
-  // Consume todo el estado del usuario del contexto de autenticación
-  // ¡Ahora incluimos setNeedsInvitationCode!
   const {
     user,
-    userRole,
-    needsInvitationCode,
     loadingUserStatus,
-    hasError,
-    errorDetails,
-    isOnline, // Consumimos isOnline (aunque su impacto principal está en AuthProvider)
-    setNeedsInvitationCode, // ¡¡¡Consumimos la función para actualizar el estado!!!
+    hasError: authProviderHasError,
+    errorDetails: authProviderErrorDetails,
   } = useAuth();
 
-  // --- Lógica de Renderizado Condicional ---
-  // Basado en el estado obtenido del AuthProvider
+  const { db: firestoreDb, isInitialized: firebaseInitialized } = useFirebase();
 
-  // 1. Estado de Carga Inicial
-  // Si aún estamos cargando el estado inicial del usuario/rol
-  if (loadingUserStatus) {
-    return <LoadingSpinner />; // Muestra el componente de carga
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [invitationData, setInvitationData] = useState<InvitationData | null>(
+    null
+  );
+  const [isLoadingFirestore, setIsLoadingFirestore] = useState(true);
+  const [firestoreLoadError, setFirestoreLoadError] = useState<Error | null>(
+    null
+  );
+  const [retryCount, setRetryCount] = useState(0);
+  const [forceReload, setForceReload] = useState(0);
+  const [newUserCreated, setNewUserCreated] = useState(false); // Nuevo estado para rastrear creación de usuario
+
+  // Carga de datos de Firestore
+  useEffect(() => {
+    const fetchFirestoreData = async () => {
+      setIsLoadingFirestore(true);
+      setFirestoreLoadError(null);
+
+      try {
+        // Solo cargar datos si tenemos usuario y Firebase está inicializado
+        if (!user || !firebaseInitialized || !firestoreDb) {
+          setIsLoadingFirestore(false);
+          return;
+        }
+
+        console.log("Iniciando carga de datos de Firestore para:", user.uid);
+
+        // 1. Cargar datos del usuario
+        const userDocRef = doc(firestoreDb, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          console.log("Documento de usuario no encontrado");
+
+          // Si acabamos de crear un usuario, intentar nuevamente después de un breve retraso
+          if (newUserCreated && retryCount < 3) {
+            console.log(`Reintentando en 1 segundo (${retryCount + 1}/3)`);
+            setTimeout(() => setRetryCount((prev) => prev + 1), 1000);
+            return;
+          }
+
+          setUserData(null);
+          setIsLoadingFirestore(false);
+          return;
+        }
+
+        const currentUserData = userDocSnap.data() as UserData;
+        setUserData(currentUserData);
+        console.log("Datos de usuario cargados:", currentUserData);
+
+        // 2. Si es candidato, cargar datos de invitación
+        if (
+          currentUserData.role === "candidate" &&
+          currentUserData.invitationDocId
+        ) {
+          const invitationDocRef = doc(
+            firestoreDb,
+            "candidateInvitations",
+            currentUserData.invitationDocId
+          );
+          const invitationDocSnap = await getDoc(invitationDocRef);
+
+          if (invitationDocSnap.exists()) {
+            const invitation = invitationDocSnap.data() as InvitationData;
+            setInvitationData(invitation);
+            console.log("Datos de invitación cargados:", invitation);
+          } else {
+            console.warn("Documento de invitación no encontrado");
+            setInvitationData(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando datos de Firestore:", error);
+        setFirestoreLoadError(error as Error);
+
+        // Reintento automático
+        if (retryCount < 3) {
+          console.log(`Reintentando en 5 segundos (${retryCount + 1}/3)`);
+          setTimeout(() => setRetryCount((prev) => prev + 1), 5000);
+        } else {
+          setIsLoadingFirestore(false);
+        }
+      } finally {
+        setIsLoadingFirestore(false);
+        setNewUserCreated(false); // Resetear estado después de la carga
+      }
+    };
+
+    fetchFirestoreData();
+  }, [
+    user,
+    firebaseInitialized,
+    firestoreDb,
+    retryCount,
+    forceReload,
+    newUserCreated,
+  ]);
+
+  const handleNewUserValidatedCode = () => {
+    console.log("Nuevo usuario validado, forzando recarga");
+    setNewUserCreated(true); // Marcar que se creó un nuevo usuario
+    setRetryCount(0); // Resetear contador de reintentos
+    setForceReload((prev) => prev + 1); // Forzar recarga de datos
+  };
+
+  // Estado de carga general
+  if (loadingUserStatus || isLoadingFirestore) {
+    return <LoadingSpinner />;
   }
 
-  // 2. Estado de Error
-  // Si ocurrió un error al cargar el estado del usuario o interactuar con Firebase
-  if (hasError) {
-    return <ErrorMessage errorDetails={errorDetails} />; // Muestra el componente de error
+  // Manejo de errores
+  if (authProviderHasError) {
+    return <ErrorMessage errorDetails={authProviderErrorDetails} />;
   }
 
-  // 3. Estado Offline Específico
-  // Si el AuthProvider detectó que estamos offline Y ya terminó de cargar
-  // Añadimos una UI específica para el modo offline.
-  // userRole se establece a 'offline' en AuthProvider si !isOnline y no hay error.
-  if (!isOnline && userRole === "offline") {
-    // Puedes crear un componente específico para este mensaje si quieres
+  if (firestoreLoadError) {
     return (
-      <div className="alert alert-warning m-4 text-center">
-        <h3>Modo Offline</h3>
-        <p>
-          No hay conexión a Internet. Algunas funcionalidades pueden no estar
-          disponibles.
-        </p>
-        {/* Opcional: Mostrar estado del usuario si lo tienes en caché */}
-        {user && <p>Usuario: {user.email}</p>}
-      </div>
+      <Container className="mt-5 text-center">
+        <h3>Error al cargar datos</h3>
+        <p>{firestoreLoadError.message}</p>
+        {retryCount < 3 ? (
+          <p>Intentando nuevamente en 5 segundos...</p>
+        ) : (
+          <button
+            className="btn btn-primary mt-3"
+            onClick={() => setRetryCount(0)}
+          >
+            Reintentar
+          </button>
+        )}
+      </Container>
     );
   }
 
-  // 4. Si no hay usuario autenticado (y no estamos en carga/error/offline explícito)
+  // Usuario no autenticado
   if (!user) {
-    // Renderiza la página de inicio de sesión con Google.
-    // Pasamos la función de inicio de sesión con Google si la tienes implementada
-    // en un archivo separado como '@/firebase/auth/clientAuth' y la exportas.
-    // Puedes pasarla como prop a GoogleSignInPage o implementarla dentro.
-    // Por ahora, GoogleSignInPage ya tiene su lógica interna handleGoogleSignIn.
     return <GoogleSignInPage />;
   }
 
-  // 5. Si hay usuario y su rol es Admin
-  if (userRole === "RRHH Admin" || userRole === "Admin Principal") {
-    // Renderiza el Dashboard de Administrador
+  // Usuarios administradores
+  if (userData?.role === "RRHH Admin" || userData?.role === "Admin Principal") {
     return <AdminDashboard />;
   }
 
-  // 6. Si hay usuario, no es Admin, y necesita validar el código (rol 'invitado' o similar)
-  if (needsInvitationCode) {
-    // Renderiza el componente de Login para ingresar DNI/Código.
-    // isGoogleAuthenticated es true porque 'user' existe.
-    // ¡¡¡Pasamos la función setNeedsInvitationCode para que el componente Login la llame al validar!!!
+  // Nuevos usuarios (sin datos en Firestore)
+  if (!userData) {
     return (
       <Login
         isGoogleAuthenticated={true}
-        onCodeValidated={() => setNeedsInvitationCode(false)} // Pasa la función para actualizar el estado global
-        // Si implementas el login de Google en un archivo aparte y quieres pasarlo, pásalo aquí:
-        // onGoogleLoginClick={handleGoogleLogin} // Asumiendo que handleGoogleLogin está definida o pasada aquí
+        onCodeValidated={handleNewUserValidatedCode}
       />
     );
   }
 
-  // 7. Si hay usuario, no es Admin, y NO necesita código (ya validó o no aplica)
-  // Este es el caso de un empleado regular con acceso confirmado.
-  // Es el renderizado "por defecto" si ninguna de las condiciones anteriores se cumple.
-  return <EmployeeForm />; // Muestra el formulario del empleado
-}
+  // Candidatos con invitación válida
+  if (
+    userData.role === "candidate" &&
+    userData.invitationDocId &&
+    invitationData &&
+    invitationData.used === false
+  ) {
+    return (
+      <EmployeeForm invitationId={userData.invitationDocId} userId={user.uid} />
+    );
+  }
 
-// Notas:
-// - Este componente usa el hook useAuth, por lo tanto DEBE ser un Client Component ("use client").
-// - No maneja la lógica de autenticación o fetching de datos directamente, sino que
-//   la consume del AuthProvider.
-// - Su rol es puramente de presentación condicional basada en el estado global.
+  // Estados no válidos
+  return (
+    <Container className="mt-5">
+      <Row className="justify-content-md-center">
+        <Col md={8}>
+          <Card className="shadow">
+            <Card.Header className="bg-info text-white text-center py-3">
+              <Card.Title>Estado de Cuenta</Card.Title>
+            </Card.Header>
+            <Card.Body>
+              <div className="alert alert-info text-center">
+                <h3>Información de tu cuenta</h3>
+
+                <p>
+                  Rol: <strong>{userData.role}</strong>
+                </p>
+
+                {userData.role === "candidate" && (
+                  <>
+                    {!userData.invitationDocId ? (
+                      <p className="text-danger">
+                        Tu cuenta no tiene una invitación asociada.
+                      </p>
+                    ) : !invitationData ? (
+                      <p className="text-danger">
+                        No se encontró la invitación asociada a tu cuenta.
+                      </p>
+                    ) : invitationData.used === true ? (
+                      <p className="text-danger">
+                        La invitación ya ha sido utilizada.
+                      </p>
+                    ) : (
+                      <p className="text-danger">
+                        Estado desconocido de la invitación.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {userData.role !== "candidate" && (
+                  <p>
+                    Tu rol actual no requiere completar el formulario de
+                    registro.
+                  </p>
+                )}
+
+                <p className="mt-3">
+                  Si necesitas ayuda, contacta al equipo de administración.
+                </p>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
+  );
+}

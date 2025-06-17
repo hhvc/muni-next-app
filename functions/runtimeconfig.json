@@ -1,0 +1,7 @@
+{
+  "service_account": {
+    "project_id": "muni-22fa0",
+    "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+    "client_email": "firebase-adminsdk@...gserviceaccount.com"
+  }
+}
