@@ -4,12 +4,8 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "/api/**",
-        "function": "hello"
-      },
-      {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "dn_muni-next-app"
       }
     ],
     "headers": [

@@ -1,0 +1,34 @@
+# apphosting.yaml
+
+# Este archivo configura el entorno de Firebase App Hosting
+# para tu backend 'muni-next-app' conectado a Git.
+
+# Sección 'env' para variables de entorno
+# Las variables configuradas aquí estarán disponibles
+# durante el proceso de build y/o en el runtime de tu aplicación.
+env:
+  # Configuración para la variable que controla el modo emulador
+  # Establecerla a "false" asegura que tu aplicación NO intente
+  # conectarse a los emuladores en localhost cuando esté desplegada.
+  - variable: NEXT_PUBLIC_FIREBASE_EMULATOR
+    value: "false"
+    availability:
+      # 'BUILD': La variable está disponible durante el proceso de construcción de la imagen.
+      #          Necesaria para Next.js/Webpack que puede leer estas variables al compilar.
+      # 'RUNTIME': La variable está disponible cuando la aplicación se está ejecutando.
+      #            Necesaria si tu código lee esta variable en el servidor (Node.js)
+      #            o en el cliente (navegador) en tiempo de ejecución.
+      - BUILD
+      - RUNTIME
+
+# Puedes añadir otras secciones aquí en el futuro si necesitas
+# configurar aspectos como el número mínimo/máximo de instancias (runConfig),
+# secretos de Secret Manager, etc. Por ahora, solo necesitamos la variable de entorno.
+
+# Ejemplo opcional de runConfig (descomentar y ajustar si es necesario)
+# runConfig:
+#   minInstances: 1 # Número mínimo de instancias activas (reduce latencia pero aumenta costo)
+#   maxInstances: 10 # Número máximo de instancias para escalar (limita picos de tráfico)
+#   cpu: 1000m # Milicpus (1000m = 1 CPU virtual)
+#   memory: 512Mi # Memoria en MiB (512Mi = 0.5 GiB)
+
