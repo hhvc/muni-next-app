@@ -15,7 +15,6 @@
     "lint": "next lint",
     "emulate": "firebase emulators:start --import=./emulator-data --export-on-exit",
     "build:functions": "cd functions && npm run build",
-    "postbuild": "cp firebase.json out\\ && cp .firebaserc out\\",
     "serve": "npm run build && npm run export && firebase emulators:start",
     "serve:dev": "next dev",
     "emulate:full": "concurrently \"npm run dev\" \"firebase emulators:start --import=./emulator-data --export-on-exit\"",
