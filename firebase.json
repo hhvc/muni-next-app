@@ -1,7 +1,11 @@
 {
   "hosting": {
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "**",
@@ -60,10 +64,11 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-    "apphosting": [
+  "apphosting": [
     {
       "backendId": "muni-next-app",
-      "rootDir": "./"
+      "rootDir": "./",
+      "alwaysDeployFromSource": true
     }
   ],
   "emulators": {
