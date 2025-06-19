@@ -60,6 +60,12 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+    "apphosting": [
+    {
+      "backendId": "muni-next-app",
+      "rootDir": "./"
+    }
+  ],
   "emulators": {
     "functions": {
       "port": 5001,
