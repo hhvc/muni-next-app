@@ -7,46 +7,60 @@ import {
   connectFirestoreEmulator,
   Firestore,
 } from "firebase/firestore";
-import { getAuth, connectAuthEmulator, Auth } from "firebase/auth"; // Importa getAuth y connectAuthEmulator
+import { getAuth, connectAuthEmulator, Auth } from "firebase/auth";
 import {
   getStorage,
   connectStorageEmulator,
   FirebaseStorage,
 } from "firebase/storage";
 
-// La configuración de Firebase usando las variables de entorno NEXT_PUBLIC_
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  //measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Solo si usas Google Analytics para Firebase
-};
+// 💡 MODIFICACIÓN CLAVE: Leer la configuración de FIREBASE_WEBAPP_CONFIG inyectada por App Hosting
+const firebaseWebappConfig = JSON.parse(
+  process.env.FIREBASE_WEBAPP_CONFIG || "{}"
+);
 
-// Inicializa Firebase solo si no ha sido inicializado ya (común en Next.js con SSR)
+// Verifica si la app ya está inicializada ya (común en Next.js con SSR)
 let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
+const apps = getApps();
+if (apps.length === 0) {
+  // 💡 Usar la configuración parseada
+  if (Object.keys(firebaseWebappConfig).length === 0) {
+    // Esto debería imprimir un error si FIREBASE_WEBAPP_CONFIG no está presente
+    // (lo cual no debería pasar en App Hosting runtime, pero es una buena precaución)
+    console.error(
+      "FIREBASE_WEBAPP_CONFIG is not set. Cannot initialize Firebase."
+    );
+    // Decide cómo manejar esto: podrías lanzar un error o retornar null
+    // Lanzar un error aquí probablemente causaría un 500 en el backend
+    // Si quieres evitar el error, necesitarías que app, db, auth puedan ser undefined/null
+    // durante toda la vida del componente si la inicialización falla.
+    // Para este error específico, lanzar es mejor para saber que algo falló en la config.
+    throw new Error("Firebase configuration is missing.");
+  }
+  app = initializeApp(firebaseWebappConfig);
 } else {
   app = getApp(); // Si ya existe, usa la app existente
 }
 
 // Obtén las instancias de los servicios del SDK de Cliente
 const db: Firestore = getFirestore(app);
-// 💡 Modificación clave: Declara 'auth' pero no la inicialices inmediatamente
+// Declara 'auth' y 'storage' pero inicializa condicionalmente si es necesario (ver abajo)
 let auth: Auth | null = null;
-const storage: FirebaseStorage = getStorage(app);
+let storage: FirebaseStorage | null = null;
 
 // 🚀 Conexión automática a los emuladores en desarrollo local 🚀
-// Verifica si la variable NEXT_PUBLIC_FIREBASE_EMULATOR está establecida a 'true'
+// Verifica si la variable NEXT_PUBLIC_FIREBASE_EMULATOR está establecida a 'true' (de tu apphosting.yaml)
 // Y verifica si estamos en el navegador
 if (
   typeof window !== "undefined" &&
   process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true"
 ) {
   console.log("🔥 Conectando al Emulator Suite 🔥");
+
+  // Asegúrate de tener la instancia de Auth/Storage antes de conectar emuladores
+  // 💡 Obtén instancias SOLO si estás en el cliente Y usando emuladores
+  auth = getAuth(app);
+  storage = getStorage(app);
 
   // Conecta Firestore al emulador
   const [firestoreHost, firestorePort] = (
@@ -55,13 +69,11 @@ if (
   connectFirestoreEmulator(db, firestoreHost, parseInt(firestorePort, 10));
   console.log(`Firestore Emulator: http://${firestoreHost}:${firestorePort}`);
 
-  // 💡 Modificación clave: Conecta Authentication al emulador SOLO en el cliente
-  // Asegúrate de obtener la instancia 'auth' primero si aún no la tienes
-  auth = getAuth(app); // Obtén la instancia de Auth aquí, dentro del bloque cliente
+  // Conecta Authentication al emulador
   const [authHost, authPort] = (
     process.env.FIREBASE_AUTH_EMULATOR_HOST || "localhost:9099"
   ).split(":");
-  connectAuthEmulator(auth, `http://${authHost}:${authPort}`); // Auth emulator requires http:// prefix
+  connectAuthEmulator(auth, `http://${authHost}:${authPort}`);
   console.log(`Auth Emulator: http://${authHost}:${authPort}`);
 
   // Conecta Storage al emulador (si lo usas)
@@ -70,23 +82,19 @@ if (
   ).split(":");
   connectStorageEmulator(storage, storageHost, parseInt(storagePort, 10));
   console.log(`Storage Emulator: http://${storageHost}:${storagePort}`);
-
-  // Nota: Las Cloud Functions (si las llamas desde el cliente)
-  // se configuran automáticamente si se usa firebase-tools con el emulador.
-  // Si necesitas configurarlas manualmente, usarías connectFunctionsEmulator:
-  // const { getFunctions, connectFunctionsEmulator } = await import('firebase/functions');
-  // const functions = getFunctions(app);
-  // const [functionsHost, functionsPort] = (process.env.FIREBASE_FUNCTIONS_EMULATOR_HOST || 'localhost:5001').split(':');
-  // connectFunctionsEmulator(functions, functionsHost, parseInt(functionsPort, 10));
-  // console.log(`Functions Emulator: http://${functionsHost}:${functionsPort}`);
 } else if (typeof window !== "undefined") {
-  // 💡 Modificación clave: Obtén la instancia de Auth en el cliente aunque no uses emuladores
+  // 💡 Obtén las instancias de Auth y Storage SOLO si estás en el cliente (en prod)
+  // No necesitas obtenerlas en el servidor (Node.js) si solo se usan en el cliente.
+  // Esto evita posibles errores si getAuth/getStorage tienen dependencias de navegador
+  // que no se detectan inmediatamente.
   auth = getAuth(app);
+  storage = getStorage(app); // O solo si usas Storage en el cliente
 }
 
-// Exporta las instancias de los servicios para que puedan ser usadas en otros archivos de tu app
-export { app, db, auth, storage }; // 'auth' ahora puede ser null en el servidor
+// Exporta las instancias de los servicios
+// 💡 Exporta null si la inicialización falló (aunque lanzamos un error arriba)
+// o si no se inicializan condicionalmente (como auth/storage en el servidor)
+export { app, db, auth, storage };
 
-// Nota: serverApp.ts parece correcto para usar el SDK de Admin en el servidor.
-// El error que viste ('auth/invalid-api-key') es del SDK CLIENTE,
-// por lo que la modificación en clientApp.ts es la que debería resolverlo.
+// Nota: serverApp.ts usa el SDK de Admin y no depende de NEXT_PUBLIC_ ni FIREBASE_WEBAPP_CONFIG.
+// Se inicializa con una clave de servicio, por lo que es correcto por separado.
