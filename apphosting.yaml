@@ -21,14 +21,59 @@ env:
       - BUILD
       - RUNTIME
 
+  # --- Variables de configuración de Firebase ---
+  # Estos valores se obtienen de la consola de Firebase para tu app web.
+  # Necesitan el prefijo NEXT_PUBLIC_ para que Next.js los haga disponibles
+  # en el código del lado del cliente (en el navegador).
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyDGiCdhYw4gUQheATPMHQyRs5O4G8fBzWk"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "muni-22fa0.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "muni-22fa0"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "muni-22fa0.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "476946004641"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:476946004641:web:1fe91a9f66525274d14ee0"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Si tu aplicación usa Firebase Analytics, también incluye el measurementId
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: "G-40R9GT5VV3"
+    availability:
+      - BUILD
+      - RUNTIME
+
 # Puedes añadir otras secciones aquí en el futuro si necesitas
 # configurar aspectos como el número mínimo/máximo de instancias (runConfig),
-# secretos de Secret Manager, etc. Por ahora, solo necesitamos la variable de entorno.
-
+# secretos de Secret Manager, etc.
 # Ejemplo opcional de runConfig (descomentar y ajustar si es necesario)
 # runConfig:
 #   minInstances: 1 # Número mínimo de instancias activas (reduce latencia pero aumenta costo)
 #   maxInstances: 10 # Número máximo de instancias para escalar (limita picos de tráfico)
 #   cpu: 1000m # Milicpus (1000m = 1 CPU virtual)
 #   memory: 512Mi # Memoria en MiB (512Mi = 0.5 GiB)
-
