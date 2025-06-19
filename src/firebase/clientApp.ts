@@ -123,5 +123,3 @@ if (
 
 // Exporta las instancias de los servicios
 export { app, db, auth, storage };
-
-// serverApp.ts no se modifica.
