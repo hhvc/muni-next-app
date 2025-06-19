@@ -1,7 +1,13 @@
 // src/firebase/clientApp.ts
 
-// Importa solo los módulos necesarios del SDK de Cliente de Firebase (¡NO firebase-admin!)
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+// Importa solo los módulos necesarios del SDK de Cliente de Firebase
+import {
+  initializeApp,
+  getApps,
+  getApp,
+  FirebaseApp,
+  FirebaseOptions,
+} from "firebase/app";
 import {
   getFirestore,
   connectFirestoreEmulator,
@@ -14,42 +20,67 @@ import {
   FirebaseStorage,
 } from "firebase/storage";
 
-// 💡 MODIFICACIÓN CLAVE: Leer la configuración de FIREBASE_WEBAPP_CONFIG inyectada por App Hosting
-const firebaseWebappConfig = JSON.parse(
-  process.env.FIREBASE_WEBAPP_CONFIG || "{}"
-);
+// 💡 MODIFICACIÓN CLAVE: Lógica para obtener la configuración dependiendo del entorno
+let firebaseConfigToUse: FirebaseOptions;
 
-// Verifica si la app ya está inicializada ya (común en Next.js con SSR)
+// 1. Intentar leer de FIREBASE_WEBAPP_CONFIG (inyectada por App Hosting)
+const firebaseWebappConfig = process.env.FIREBASE_WEBAPP_CONFIG;
+
+if (firebaseWebappConfig) {
+  try {
+    firebaseConfigToUse = JSON.parse(firebaseWebappConfig);
+    console.log("Usando configuración de FIREBASE_WEBAPP_CONFIG");
+  } catch (e) {
+    console.error("Error parsing FIREBASE_WEBAPP_CONFIG:", e);
+    // Decide cómo manejar este error fatal
+    throw new Error("Failed to parse Firebase configuration from environment.");
+  }
+} else {
+  // 2. Si FIREBASE_WEBAPP_CONFIG no está definida, leer de NEXT_PUBLIC_* (para entorno local)
+  console.log("FIREBASE_WEBAPP_CONFIG no definida, usando NEXT_PUBLIC_*");
+  firebaseConfigToUse = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Si lo usas
+  };
+
+  // Opcional: Verificar si las variables NEXT_PUBLIC_ están realmente definidas en local si es necesario
+  if (!firebaseConfigToUse.apiKey) {
+    console.warn(
+      "NEXT_PUBLIC_FIREBASE_API_KEY no definida. La inicialización de Firebase podría fallar."
+    );
+    // Puedes lanzar un error aquí si quieres que el build local falle si la config local falta
+    // throw new Error("Firebase local configuration (NEXT_PUBLIC_*) is missing.");
+  }
+}
+
+// Inicializa Firebase solo si no ha sido inicializado ya (común en Next.js con SSR/HMR)
 let app: FirebaseApp;
 const apps = getApps();
 if (apps.length === 0) {
-  // 💡 Usar la configuración parseada
-  if (Object.keys(firebaseWebappConfig).length === 0) {
-    // Esto debería imprimir un error si FIREBASE_WEBAPP_CONFIG no está presente
-    // (lo cual no debería pasar en App Hosting runtime, pero es una buena precaución)
-    console.error(
-      "FIREBASE_WEBAPP_CONFIG is not set. Cannot initialize Firebase."
-    );
-    // Decide cómo manejar esto: podrías lanzar un error o retornar null
-    // Lanzar un error aquí probablemente causaría un 500 en el backend
-    // Si quieres evitar el error, necesitarías que app, db, auth puedan ser undefined/null
-    // durante toda la vida del componente si la inicialización falla.
-    // Para este error específico, lanzar es mejor para saber que algo falló en la config.
-    throw new Error("Firebase configuration is missing.");
+  // 💡 Usar la configuración seleccionada
+  if (!firebaseConfigToUse || !firebaseConfigToUse.apiKey) {
+    // Este chequeo captura si ninguna configuración se encontró o si la API Key falta
+    console.error("No se encontró configuración válida de Firebase.");
+    throw new Error("Firebase configuration is missing or invalid.");
   }
-  app = initializeApp(firebaseWebappConfig);
+  app = initializeApp(firebaseConfigToUse);
 } else {
   app = getApp(); // Si ya existe, usa la app existente
 }
 
 // Obtén las instancias de los servicios del SDK de Cliente
 const db: Firestore = getFirestore(app);
-// Declara 'auth' y 'storage' pero inicializa condicionalmente si es necesario (ver abajo)
+// Declara 'auth' y 'storage' pero inicializa condicionalmente solo en el cliente
 let auth: Auth | null = null;
 let storage: FirebaseStorage | null = null;
 
 // 🚀 Conexión automática a los emuladores en desarrollo local 🚀
-// Verifica si la variable NEXT_PUBLIC_FIREBASE_EMULATOR está establecida a 'true' (de tu apphosting.yaml)
+// Verifica si la variable NEXT_PUBLIC_FIREBASE_EMULATOR está establecida a 'true' (de tu apphosting.yaml o .env.local)
 // Y verifica si estamos en el navegador
 if (
   typeof window !== "undefined" &&
@@ -83,18 +114,14 @@ if (
   connectStorageEmulator(storage, storageHost, parseInt(storagePort, 10));
   console.log(`Storage Emulator: http://${storageHost}:${storagePort}`);
 } else if (typeof window !== "undefined") {
-  // 💡 Obtén las instancias de Auth y Storage SOLO si estás en el cliente (en prod)
+  // 💡 Obtén las instancias de Auth y Storage SOLO si estás en el cliente (en prod o local dev sin emulador)
   // No necesitas obtenerlas en el servidor (Node.js) si solo se usan en el cliente.
-  // Esto evita posibles errores si getAuth/getStorage tienen dependencias de navegador
-  // que no se detectan inmediatamente.
+  // Esto evita posibles errores si getAuth/getStorage tienen dependencias de navegador.
   auth = getAuth(app);
   storage = getStorage(app); // O solo si usas Storage en el cliente
 }
 
 // Exporta las instancias de los servicios
-// 💡 Exporta null si la inicialización falló (aunque lanzamos un error arriba)
-// o si no se inicializan condicionalmente (como auth/storage en el servidor)
 export { app, db, auth, storage };
 
-// Nota: serverApp.ts usa el SDK de Admin y no depende de NEXT_PUBLIC_ ni FIREBASE_WEBAPP_CONFIG.
-// Se inicializa con una clave de servicio, por lo que es correcto por separado.
+// serverApp.ts no se modifica.

@@ -229,6 +229,17 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     setTopMessage(null);
     setBottomMessage(null);
 
+    if (!storage) {
+      console.error(
+        "Firebase Storage es null. No se puede guardar el registro con archivos adjuntos."
+      );
+      setTopMessage({
+        type: "danger",
+        text: "Error: El servicio de almacenamiento no está disponible. Intenta más tarde.",
+      });
+      setIsSaving(false);
+      return; // 🛑 Detiene la ejecución si storage es null
+    }
     try {
       await saveEmployeeRecord(db, storage, {
         personalData,
