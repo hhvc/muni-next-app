@@ -74,7 +74,7 @@ if (apps.length === 0) {
 }
 
 // Obtén las instancias de los servicios del SDK de Cliente
-const db: Firestore = getFirestore(app);
+const db: Firestore = getFirestore(app, 'munidb');
 // Declara 'auth' y 'storage' pero inicializa condicionalmente solo en el cliente
 let auth: Auth | null = null;
 let storage: FirebaseStorage | null = null;
