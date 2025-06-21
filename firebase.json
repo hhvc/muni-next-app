@@ -1,15 +1,14 @@
 {
   "hosting": {
     "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "**",
-        "backend": "muni-next-app"
+        "run": {
+          "serviceId": "muni-next-app",
+          "region": "us-central1"
+        }
       }
     ],
     "headers": [
