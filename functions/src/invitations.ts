@@ -5,16 +5,20 @@ import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // 0. Inicializa Firebase Admin SDK
+// Esto es importante para las pruebas en emuladores y para el despliegue.
+// Si ya tienes un archivo `index.ts` principal donde inicializas `admin.initializeApp()`,
+// asegúrate de no inicializarlo dos veces si este archivo se importa allí.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 // 0.1. Definir la interfaz de la Invitación aquí para que la función la conozca.
+// *** CAMBIO CLAVE AQUÍ: email ahora es opcional. dni y key son obligatorios ***
 interface InvitationData {
   id?: string;
-  email: string;
-  dni?: string;
-  key?: string;
+  email?: string; // Ahora es opcional, se llenará cuando la invitación sea usada
+  dni: string; // Ahora es obligatorio
+  key: string; // Ahora es obligatorio
   role: string;
   createdAt: admin.firestore.FieldValue | admin.firestore.Timestamp;
   createdBy: string;
@@ -24,22 +28,18 @@ interface InvitationData {
 }
 
 // 0.2. Definir la interfaz para los datos de entrada que esperamos del cliente.
+// *** CAMBIO CLAVE AQUÍ: No se espera 'email' al generar la invitación. dni y key son obligatorios. ***
 interface GenerateInvitationRequestData {
-  email: string;
+  dni: string; // Ahora es obligatorio
+  key: string; // Ahora es obligatorio
   role: string;
-  dni?: string;
-  key?: string;
-  createdBy?: string;
+  createdBy?: string; // Opcional, si el cliente envía el UID del creador
 }
 
 // Nombre de la Cloud Function: 'generateInvitation'
 export const generateInvitation = functions.https.onCall(
-  async (
-    // *** CAMBIO CLAVE AQUÍ: La función solo recibe 'request' ***
-    request: CallableRequest<GenerateInvitationRequestData>
-  ) => {
+  async (request: CallableRequest<GenerateInvitationRequestData>) => {
     // 1. Autenticación y Autorización
-    // *** CAMBIO CLAVE AQUÍ: Accedemos a auth a través de request.auth ***
     if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
@@ -72,31 +72,26 @@ export const generateInvitation = functions.https.onCall(
     }
 
     // 2. Validación de datos de entrada
-    const { email, role, dni, key, createdBy } = request.data; // Acceso a los datos
+    // *** CAMBIO CLAVE AQUÍ: Acceso a dni, key, role. Ya no se espera email. ***
+    const { dni, key, role, createdBy } = request.data; // Acceso a los datos
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    // *** CAMBIO CLAVE AQUÍ: Validaciones para DNI, Clave y Rol. Email ya no se valida aquí. ***
+    if (!dni || typeof dni !== "string") {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "El email es requerido, debe ser una cadena de texto y un formato válido."
+        "El DNI es requerido y debe ser una cadena de texto."
+      );
+    }
+    if (!key || typeof key !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "La clave es requerida y debe ser una cadena de texto."
       );
     }
     if (!role || typeof role !== "string") {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "El rol es requerido y debe ser una cadena de texto."
-      );
-    }
-
-    if (dni !== undefined && typeof dni !== "string") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "El DNI debe ser una cadena de texto si se proporciona."
-      );
-    }
-    if (key !== undefined && typeof key !== "string") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "La clave debe ser una cadena de texto si se proporciona."
       );
     }
 
@@ -109,22 +104,27 @@ export const generateInvitation = functions.https.onCall(
     }
 
     // 3. Crear el objeto de invitación
-    const newInvitationDoc: Omit<InvitationData, "id" | "createdAt"> & {
+    // *** CAMBIO CLAVE AQUÍ: newInvitationDoc ahora incluye dni y key, y no email (porque es opcional) ***
+    const newInvitationDoc: Omit<
+      InvitationData,
+      "id" | "createdAt" | "email"
+    > & {
+      // Excluir email si no se proporciona al crear
       createdAt: admin.firestore.FieldValue;
+      email?: string; // Permitir email opcional si el frontend lo enviara, aunque no lo haga ahora
     } = {
-      email,
+      dni,
+      key,
       role,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       createdBy: createdBy || request.auth.uid, // Acceso a UID
       used: false,
     };
 
-    if (dni) {
-      newInvitationDoc.dni = dni;
-    }
-    if (key) {
-      newInvitationDoc.key = key;
-    }
+    // Si tu frontend decidiera enviar email (aunque opcional), podrías añadirlo así:
+    // if (request.data.email) {
+    //   newInvitationDoc.email = request.data.email;
+    // }
 
     try {
       // 4. Persistir la invitación en Firestore
@@ -146,9 +146,10 @@ export const generateInvitation = functions.https.onCall(
         );
       }
 
+      // *** CAMBIO CLAVE AQUÍ: Asegurar que se devuelve email como opcional ***
       return {
         id: docRef.id,
-        email: dataToReturn.email,
+        email: dataToReturn.email || undefined, // Devolver como opcional
         role: dataToReturn.role,
         dni: dataToReturn.dni,
         key: dataToReturn.key,
