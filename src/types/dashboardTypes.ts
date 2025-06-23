@@ -41,13 +41,13 @@ export interface EmployeeDataRecord {
   submittedAt?: Date | null; // Si guardas la fecha de envío definitivo
 }
 
-// *** CAMBIO CLAVE AQUÍ: Interfaz para los datos en la colección 'candidateInvitations' ***
+// Interfaz para los datos en la colección 'candidateInvitations'
 export interface Invitation {
   id: string; // ID del documento de invitación
-  email: string; // Email invitado
-  dni?: string; // NUEVO: DNI del invitado (opcional si no siempre se proporciona)
-  key?: string; // NUEVO: Clave/Contraseña (opcional, si se usará para una invitación con contraseña)
-  role: string; // Rol que se asignará al completar el formulario (ej: "user")
+  email?: string; // CAMBIO CLAVE: Email ahora es opcional (se llena al usar la invitación)
+  dni: string; // CAMBIO CLAVE: DNI ahora es obligatorio
+  key: string; // CAMBIO CLAVE: Clave/Contraseña ahora es obligatoria
+  role: string; // Rol que se asignará al completar el formulario
   createdAt: Timestamp;
   createdBy: string; // UID del admin que creó la invitación
   used: boolean; // Si la invitación ha sido usada

@@ -20,12 +20,9 @@ import {
   orderBy,
   where,
   Timestamp,
-  // Ya no necesitamos 'doc' ni 'setDoc' directamente aquí para crear invitaciones,
-  // ya que se hará a través de Cloud Functions.
 } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 
-// *** Importar getFunctions y httpsCallable para llamar a Cloud Functions ***
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Importar interfaces de datos del dashboard
@@ -50,12 +47,10 @@ import { EmployeeSearchField } from "../EmployeeDataTable";
 // DEBES IMPLEMENTAR ESTAS FUNCIONES DE BACKEND POR SEPARADO (en tu carpeta `functions` para Cloud Functions).
 // --- FIN NOTA DE SEGURIDAD ---
 
-// *** MODIFICACIÓN CLAVE: Roles disponibles para la aplicación ***
 // Define todos los roles que tu aplicación maneja
-const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin", "user"]; // Incluye "user" si lo usas genéricamente.
+const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin", "user"];
 // Roles que se pueden asignar al invitar
-// Aquí incluimos los roles específicos que el usuario solicitó
-const INVITE_ROLES = ["colaborador", "datos", "rrhh"]; // Excluye "admin" por seguridad.
+const INVITE_ROLES = ["colaborador", "datos", "rrhh"]; // Puedes añadir "user" si lo consideras apropiado aquí.
 
 // --- Componente Principal HRDashboard ---
 const HRDashboard: React.FC = () => {
@@ -96,9 +91,6 @@ const HRDashboard: React.FC = () => {
   useEffect(() => {
     if (db) {
       setIsDbInitialized(true);
-      // Opcional: inicializar funciones aquí si no lo haces globalmente
-      // const functions = getFunctions();
-      // httpsCallable(functions, 'someFunction'); // Ejemplo de uso para asegurar la inicialización
     } else {
       // Tu lógica de reintento para la DB
       const intervalId = setInterval(() => {
@@ -175,7 +167,7 @@ const HRDashboard: React.FC = () => {
         });
       });
       setEmployees(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error cargando datos de empleados:", err);
       let errorMessage = "Error al cargar datos de empleados";
       if (err instanceof FirebaseError) {
@@ -211,7 +203,7 @@ const HRDashboard: React.FC = () => {
         });
       });
       setUsers(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error cargando usuarios:", err);
       let errorMessage = "Error al cargar usuarios";
       if (err instanceof FirebaseError) {
@@ -242,9 +234,9 @@ const HRDashboard: React.FC = () => {
         const docData = doc.data();
         data.push({
           id: doc.id,
-          email: docData.email || "",
-          dni: docData.dni || undefined, // Mapear el nuevo campo DNI
-          key: docData.key || undefined, // Mapear el nuevo campo Clave
+          email: docData.email || undefined, // Email ahora es opcional/indefinido en la creación
+          dni: docData.dni || "", // Mapear el campo DNI (ahora obligatorio en la creación)
+          key: docData.key || "", // Mapear el campo Clave (ahora obligatorio en la creación)
           role: docData.role || "user",
           createdAt: docData.createdAt || Timestamp.now(),
           createdBy: docData.createdBy || "unknown",
@@ -254,7 +246,7 @@ const HRDashboard: React.FC = () => {
         });
       });
       setInvitations(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error cargando invitaciones:", err);
       let errorMessage = "Error al cargar invitaciones";
       if (err instanceof FirebaseError) {
@@ -292,24 +284,22 @@ const HRDashboard: React.FC = () => {
   // Manejar el cambio de rol (llama a un backend seguro)
   const handleChangeUserRole = useCallback(
     async (userId: string, newRole: string) => {
-      // Este es un ejemplo para una Cloud Function invocable por HTTPS:
       const functions = getFunctions();
       const changeUserRoleCallable = httpsCallable(functions, "changeUserRole");
 
       try {
-        setUsersLoading(true); // Podrías poner un spinner o indicador específico para el usuario
+        setUsersLoading(true);
         await changeUserRoleCallable({ userId, newRole });
         console.log(
           `Rol de usuario ${userId} cambiado exitosamente a ${newRole}.`
         );
 
-        // Después del éxito del backend, actualiza el estado local
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user.id === userId ? { ...user, role: newRole } : user
           )
         );
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Error cambiando rol de usuario:", err);
         let errorMessage = "Error al cambiar el rol.";
         if (err instanceof FirebaseError) {
@@ -317,18 +307,18 @@ const HRDashboard: React.FC = () => {
         } else if (err instanceof Error) {
           errorMessage += `: ${err.message}`;
         }
-        alert(errorMessage); // Mostrar un error al usuario
+        alert(errorMessage);
       } finally {
-        setUsersLoading(false); // Ocultar spinner
+        setUsersLoading(false);
       }
     },
     []
   );
 
-  // *** MODIFICACIÓN CLAVE: Manejar la generación de invitación (llama a un backend seguro) ***
+  // *** CAMBIO CLAVE: Manejar la generación de invitación (ahora con DNI, Clave y Rol) ***
   const handleGenerateInvitation = useCallback(
-    async (email: string, role: string, dni?: string, key?: string) => {
-      // Nuevos argumentos: dni y key
+    async (dni: string, key: string, role: string) => {
+      // Nuevos argumentos
       if (!currentUserId || currentUserId === "admin_user_id") {
         throw new Error(
           "Usuario administrador no autenticado o ID de usuario de prueba. No se puede generar invitación."
@@ -340,34 +330,33 @@ const HRDashboard: React.FC = () => {
       const generateInvitationCallable = httpsCallable(
         functions,
         "generateInvitation"
-      ); // Nombre de tu Cloud Function
+      );
 
       try {
         // Llamada a la Cloud Function para generar y persistir la invitación
+        // Se pasan DNI, Clave y Rol
         const result = await generateInvitationCallable({
-          email,
-          role,
           dni,
           key,
+          role,
           createdBy: currentUserId,
         });
-        const newInvitationData = result.data as Invitation; // Asume que la función devuelve la invitación creada
+        const newInvitationData = result.data as Invitation;
 
         // Actualiza el estado local con la nueva invitación devuelta por la CF
         setInvitations((prevInvitations) => [
           {
             ...newInvitationData,
-            // Asegurarse de que createdAt es un Timestamp si la Cloud Function lo devuelve como tal
             createdAt: newInvitationData.createdAt || Timestamp.now(),
           },
           ...prevInvitations,
         ]);
 
         console.log(
-          `Invitación generada y guardada exitosamente para ${email}. ID: ${newInvitationData.id}`
+          `Invitación para DNI: ${dni} generada y guardada exitosamente.`
         );
-        return "Invitación generada exitosamente!"; // Devolver mensaje de éxito para el InvitationForm
-      } catch (err) {
+        return `Invitación para DNI: ${dni} generada exitosamente!`; // Devolver mensaje de éxito para el InvitationForm
+      } catch (err: unknown) {
         console.error("Error generando invitación:", err);
         let errorMessage = "Error al generar la invitación.";
         if (err instanceof FirebaseError) {
@@ -375,19 +364,17 @@ const HRDashboard: React.FC = () => {
         } else if (err instanceof Error) {
           errorMessage += `: ${err.message}`;
         }
-        // No alertamos directamente aquí, lanzamos el error para que InvitationForm lo maneje
         throw new Error(errorMessage);
       } finally {
         setGeneratingInvitation(false);
       }
     },
     [currentUserId]
-  ); // Depende del UID del admin actual
+  );
 
   // Manejar descarga de datos de empleados
   const handleEmployeeDataDownload = useCallback(() => {
     try {
-      // Encabezados
       const headers = [
         "#",
         "Nombre",
@@ -402,10 +389,8 @@ const HRDashboard: React.FC = () => {
         "Estado",
       ];
 
-      // Datos
       const rows = employees.map((employee, index) => {
-        // Ahora employee es de tipo EmployeeDataRecord, que tiene personalData
-        const pData = employee.personalData; // Accede directamente a personalData
+        const pData = employee.personalData;
 
         return [
           (index + 1).toString(),
@@ -422,13 +407,11 @@ const HRDashboard: React.FC = () => {
         ];
       });
 
-      // Crear contenido CSV
       const csvContent = [
         headers.join(","),
         ...rows.map((row) => row.join(",")),
       ].join("\n");
 
-      // Crear blob y descargar
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -440,11 +423,11 @@ const HRDashboard: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error generando CSV:", error);
       alert("Error al generar el archivo de descarga.");
     }
-  }, [employees]); // Depende de los empleados cargados
+  }, [employees]);
 
   // Manejador para el campo de búsqueda de empleados
   const handleEmployeeSearchChange = useCallback(
@@ -530,7 +513,7 @@ const HRDashboard: React.FC = () => {
           <InvitationForm
             onGenerateInvitation={handleGenerateInvitation}
             generating={generatingInvitation}
-            availableRoles={INVITE_ROLES} // <-- Usar INVITE_ROLES
+            availableRoles={INVITE_ROLES} // <-- Usar INVITE_ROLES para los roles que se pueden invitar
           />
         </Tab>
       </Tabs>
