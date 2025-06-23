@@ -164,13 +164,13 @@ export default function HomePageContent() {
       case "root":
         return <RootDashboard />;
       case "rrhh":
+      case "rrhh admin":
         return <HRDashboard />;
       case "colaborador":
         return <CollaboratorDashboard />;
       case "datos":
         return <DataDashboard />;
       case "admin principal":
-      case "rrhh admin":
         return <AdminDashboard />;
       default:
         return (
