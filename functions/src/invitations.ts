@@ -1,7 +1,6 @@
 // functions/src/invitations.ts
 
 import * as functions from "firebase-functions";
-// *** CAMBIO CLAVE AQUÍ: Solo importamos CallableRequest ***
 import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
@@ -57,7 +56,7 @@ export const generateInvitation = functions.https.onCall(
         .get();
       const userRole = userDoc.data()?.role;
 
-      const authorizedRoles = ["admin", "RRHH-Admin"];
+      const authorizedRoles = ["root", "admin principal", "rrhh admin"];
       if (!userRole || !authorizedRoles.includes(userRole)) {
         throw new functions.https.HttpsError(
           "permission-denied",
@@ -101,7 +100,7 @@ export const generateInvitation = functions.https.onCall(
       );
     }
 
-    const allowedInviteRoles = ["colaborador", "datos", "rrhh", "user"];
+    const allowedInviteRoles = ["colaborador", "datos", "rrhh"];
     if (!allowedInviteRoles.includes(role)) {
       throw new functions.https.HttpsError(
         "invalid-argument",

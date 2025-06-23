@@ -48,7 +48,7 @@ import { EmployeeSearchField } from "../EmployeeDataTable";
 // --- FIN NOTA DE SEGURIDAD ---
 
 // Define todos los roles que tu aplicación maneja
-const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin", "user"];
+const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin principal", "rrhh admin", "root"];
 // Roles que se pueden asignar al invitar
 const INVITE_ROLES = ["colaborador", "datos", "rrhh"]; // Puedes añadir "user" si lo consideras apropiado aquí.
 
