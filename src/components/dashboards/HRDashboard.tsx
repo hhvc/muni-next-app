@@ -92,8 +92,16 @@ const HRDashboard: React.FC = () => {
   const [dbInitError, setDbInitError] = useState<string | null>(null);
 
   // *** CAMBIO CLAVE: Consumir el hook useAuth ***
-  const { user, userRole, loading: authLoading } = useAuth(); // 'user' es el objeto User, 'userRole' el rol de Firestore
+  const { user, userRole, loading: authLoading, error: authError } = useAuth(); // 'user' es el objeto User, 'userRole' el rol de Firestore
   const currentUserId = user?.uid || null; // Obtenemos el UID si el usuario existe, si no, null
+
+  // --- DEBUGGING LOGS PARA HRDashboard ---
+  console.log("HRDashboard Render - authLoading:", authLoading);
+  console.log("HRDashboard Render - user (from useAuth):", user);
+  console.log("HRDashboard Render - currentUserId:", currentUserId);
+  console.log("HRDashboard Render - userRole (from useAuth):", userRole);
+  console.log("HRDashboard Render - authError (from useAuth):", authError);
+  // --- FIN DEBUGGING LOGS ---
 
   // --- Efecto para verificar inicialización de Firebase DB (la autenticación la maneja useAuth) ---
   useEffect(() => {

@@ -39,63 +39,72 @@ export const useAuth = (): AuthState => {
     const authInstance = getAuth(); // Usa la instancia por defecto si solo se inicializa una app
     const dbInstance = getFirestore(); // Usa la instancia por defecto
 
+    console.log("useAuth: useEffect se inicia. reloadTrigger:", reloadTrigger); // DEBUG
+
     // Suscríbete a los cambios en el estado de autenticación de Firebase Auth
     const unsubscribe = onAuthStateChanged(
       authInstance,
       async (authenticatedUser) => {
-        // Al recibir un cambio (login, logout), iniciamos el estado de carga
+        console.log("useAuth: onAuthStateChanged callback disparado."); // DEBUG
         setLoading(true);
         setError(null); // Limpiamos errores previos
+
+        let determinedRole: string | null = null; // Variable local para el rol determinado
 
         try {
           if (authenticatedUser) {
             // Si hay un usuario autenticado, lo almacenamos
+            console.log(
+              "useAuth: Usuario autenticado, UID:",
+              authenticatedUser.uid
+            ); // DEBUG
             setUser(authenticatedUser);
 
-            // ✅ Cargar datos adicionales del documento de usuario desde Firestore
+            // Cargar datos adicionales del documento de usuario desde Firestore
             const userDocRef = doc(dbInstance, "users", authenticatedUser.uid);
             const userDocSnap = await getDoc(userDocRef);
 
             if (userDocSnap.exists()) {
               const userData = userDocSnap.data() as UserDocumentData; // Casteamos los datos al tipo esperado
-              setUserRole(userData.role || null); // Almacenamos el rol (usamos || null por si el campo 'role' no existe)
-              // ✅ Opcional: Si tu componente padre HomePageContent.tsx necesita otros datos
-              // del documento de usuario (como invitationDocId o employeeDataCompleted),
-              // también podrías almacenarlos en estados aquí y exportarlos.
-              // Por ejemplo:
-              // setNeedsInvitationCode(!userData.invitationDocId); // Si tu lógica de needsInvitationCode depende de invitationDocId
-              // setIsEmployeeDataCompleted(userData.employeeDataCompleted === true); // Si tienes un flag de completado
+              console.log(
+                "useAuth: Datos del documento de usuario Firestore:",
+                userData
+              ); // DEBUG
+              console.log("useAuth: Rol leído de Firestore:", userData.role); // DEBUG
+              determinedRole = userData.role || null; // Asignamos a la variable local
+              setUserRole(determinedRole); // Almacenamos el rol
             } else {
               // Si el usuario Auth existe pero NO tiene documento en 'users', su rol es null/indefinido
+              determinedRole = null; // Asignamos a la variable local
               setUserRole(null); // O podrías establecer un rol por defecto como 'unregistered'
               console.log(
                 `useAuth: Usuario ${authenticatedUser.uid} autenticado pero sin documento en Firestore 'users'.`
-              );
-              // ✅ Opcional: Podrías establecer un flag aquí si necesitas que el componente padre
-              // sepa específicamente que necesita validar el código inicial.
-              // Por ejemplo, si en HomePageContent quieres usar `needsInvitationCode`.
-              // setNeedsInvitationCode(true);
+              ); // DEBUG
             }
           } else {
             // Si no hay usuario (logout), limpiamos el estado
+            console.log("useAuth: Usuario deslogueado."); // DEBUG
             setUser(null);
+            determinedRole = null; // Asignamos a la variable local
             setUserRole(null);
-            // ✅ Opcional: Limpiar también flags relacionados con el documento de usuario
-            // setNeedsInvitationCode(false);
-            // setIsEmployeeDataCompleted(false);
           }
-          // ✅ Es una buena práctica añadir `reloadTrigger` a las dependencias aquí
-          // para que el effect se re-ejecute y recargue datos cuando se llame a reloadUserData.
-        } catch (err) {
-          console.error("useAuth: Error fetching user document:", err);
-          setError(err as Error); // Almacenamos cualquier error
-          // Si falla la carga del documento, podríamos querer resetear rol/flags
+        } catch (err: unknown) {
+          console.error("useAuth: Error fetching user document:", err); // DEBUG
+          setError(
+            err instanceof Error ? err : new Error("An unknown error occurred.")
+          ); // Almacenamos cualquier error
+          determinedRole = null; // Asignamos a la variable local
           setUserRole(null);
-          // setNeedsInvitationCode(false);
-          // setIsEmployeeDataCompleted(false);
         } finally {
           // Finalizamos el estado de carga después de procesar el usuario y su documento
           setLoading(false);
+          // Usamos la variable local 'determinedRole' aquí
+          console.log(
+            "useAuth: Carga de autenticación y rol finalizada. user:",
+            authenticatedUser?.uid,
+            "userRole (final):",
+            determinedRole
+          ); // DEBUG
         }
       }
     );
@@ -103,7 +112,10 @@ export const useAuth = (): AuthState => {
     // Función de limpieza: se ejecuta cuando el componente que usa el hook se desmonta
     // o antes de que el effect se re-ejecute (ej: por un cambio en reloadTrigger).
     // Esto desuscribe el listener de autenticación para evitar fugas de memoria.
-    return () => unsubscribe();
+    return () => {
+      console.log("useAuth: Desuscribiendo onAuthStateChanged."); // DEBUG
+      unsubscribe();
+    };
 
     // Dependencias del Effect:
     // Este effect debe re-ejecutarse si `reloadTrigger` cambia, para forzar una recarga.
@@ -112,17 +124,14 @@ export const useAuth = (): AuthState => {
     // No necesita depender de `authInstance` o `dbInstance` si estas instancias
     // son constantes (obtenidas una vez de clientApp) o si getAuth/getFirestore
     // siempre devuelven la misma instancia para la app por defecto.
-  }, [reloadTrigger]); // ✅ Dependencia en reloadTrigger para forzar re-fetch
+  }, [reloadTrigger]); // Dependencia en reloadTrigger para forzar re-fetch
 
   // Función para forzar la recarga del documento de usuario y el rol
   const reloadUserData = async () => {
-    console.log("useAuth: Forzando recarga de datos del usuario y rol.");
+    console.log("useAuth: Forzando recarga de datos del usuario y rol."); // DEBUG
     // Incrementamos el estado local reloadTrigger. Esto hará que el useEffect
     // se re-ejecute, lo que disparará el fetch del documento de usuario de nuevo.
-    // No necesitamos esperar el resultado aquí, ya que el useEffect maneja eso.
     setReloadTrigger((prev) => prev + 1);
-    // Opcional: Puedes establecer un estado de carga temporal aquí si quieres que `loading` sea true
-    // inmediatamente después de llamar a reloadUserData, aunque el effect lo pondrá en true de todos modos.
   };
 
   // Exportar el estado y las funciones/datos que necesiten los componentes que usen este hook
@@ -131,12 +140,6 @@ export const useAuth = (): AuthState => {
     userRole, // Rol leído del documento de usuario en Firestore
     loading, // Estado de carga
     error, // Cualquier error
-    reloadUserData, // ✅ Exponemos la función para recargar datos
-    // ✅ Opcional: Exporta otros estados si los añadiste (ej: needsInvitationCode, isEmployeeDataCompleted)
-    // needsInvitationCode,
-    // isEmployeeDataCompleted,
+    reloadUserData, // Exponemos la función para recargar datos
   };
 };
-
-// No necesitas exportar la función useAuth por defecto si ya la exportas con nombre
-// export default useAuth;
