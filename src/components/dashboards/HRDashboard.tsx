@@ -25,8 +25,8 @@ import { FirebaseError } from "firebase/app";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-// *** CAMBIO CLAVE: Importar tu hook useAuth ***
-import { useAuth } from "@/hooks/useAuth"; // Asegúrate de que esta ruta sea correcta
+// *** CAMBIO CLAVE: Importar el hook useAuth desde tu AuthProvider ***
+import { useAuth } from "@/components/AuthProvider"; // Asegúrate de que esta ruta sea correcta
 
 // Importar interfaces de datos del dashboard
 import {
@@ -44,23 +44,18 @@ import InvitationForm from "../InvitationForm";
 import { EmployeeSearchField } from "../EmployeeDataTable";
 
 // --- NOTA IMPORTANTE DE SEGURIDAD (REAFIRMADA) ---
-// Las operaciones de cambiar roles y crear invitaciones DEBEN ejecutarse en un entorno de backend seguro
-// (Cloud Function, API Route en App Hosting, etc.) usando la Firebase Admin SDK.
-// El código a continuación mostrará cómo el frontend LLAMARÁ a estas funciones de backend.
-// DEBES IMPLEMENTAR ESTAS FUNCIONES DE BACKEND POR SEPARADO (en tu carpeta `functions` para Cloud Functions).
-// --- FIN NOTA DE SEGURIDAD ---
+// ... (mantiene la nota de seguridad) ...
 
 // Define todos los roles que tu aplicación maneja
 const ALL_APP_ROLES = [
   "root",
   "rrhh",
   "colaborador",
-  "datos",
   "admin principal",
   "rrhh admin",
 ];
 // Roles que se pueden asignar al invitar
-const INVITE_ROLES = ["rrhh", "colaborador", "datos"];
+const INVITE_ROLES = ["rrhh", "colaborador"]; // Ajusta según sea necesario
 
 // --- Componente Principal HRDashboard ---
 const HRDashboard: React.FC = () => {
@@ -91,19 +86,16 @@ const HRDashboard: React.FC = () => {
   const [isDbInitialized, setIsDbInitialized] = useState(false);
   const [dbInitError, setDbInitError] = useState<string | null>(null);
 
-  // *** CAMBIO CLAVE: Consumir el hook useAuth ***
-  const { user, userRole, loading: authLoading, error: authError } = useAuth(); // 'user' es el objeto User, 'userRole' el rol de Firestore
-  const currentUserId = user?.uid || null; // Obtenemos el UID si el usuario existe, si no, null
+  // *** CAMBIO CLAVE: Consumir el contexto de AuthProvider ***
+  const {
+    user,
+    userRole,
+    loadingUserStatus, // <-- Nuevo nombre del estado de carga global
+    hasError, // <-- Para errores del AuthProvider
+    errorDetails, // <-- Detalles del error del AuthProvider
+  } = useAuth();
 
-  // --- DEBUGGING LOGS PARA HRDashboard ---
-  console.log("HRDashboard Render - authLoading:", authLoading);
-  console.log("HRDashboard Render - user (from useAuth):", user);
-  console.log("HRDashboard Render - currentUserId:", currentUserId);
-  console.log("HRDashboard Render - userRole (from useAuth):", userRole);
-  console.log("HRDashboard Render - authError (from useAuth):", authError);
-  // --- FIN DEBUGGING LOGS ---
-
-  // --- Efecto para verificar inicialización de Firebase DB (la autenticación la maneja useAuth) ---
+  // --- Efecto para verificar inicialización de Firebase DB ---
   useEffect(() => {
     if (db) {
       setIsDbInitialized(true);
@@ -127,18 +119,17 @@ const HRDashboard: React.FC = () => {
         clearTimeout(timeoutId);
       };
     }
-  }, []); // Solo depende de la inicialización de DB
+  }, []);
 
-  // --- Funciones para cargar datos ---
+  // --- Funciones para cargar datos (fetchEmployeeData, fetchUsers, fetchInvitations) ---
+  // Estas funciones se mantienen sin cambios, pero el useEffect que las llama sí.
 
-  // Cargar datos de 'employee-data'
   const fetchEmployeeData = useCallback(async () => {
     if (!isDbInitialized || !db) return;
-
     setEmployeeDataLoading(true);
     setEmployeeDataError(null);
-
     try {
+      /* ... tu lógica de fetchEmployeeData ... */
       let q;
       if (employeeSearchTerm) {
         q = query(
@@ -153,10 +144,8 @@ const HRDashboard: React.FC = () => {
           orderBy("personalData.apellido")
         );
       }
-
       const querySnapshot = await getDocs(q);
       const data: EmployeeDataRecord[] = [];
-
       querySnapshot.forEach((doc) => {
         const docData = doc.data();
         data.push({
@@ -196,19 +185,16 @@ const HRDashboard: React.FC = () => {
     }
   }, [isDbInitialized, employeeSearchTerm, employeeSearchField]);
 
-  // Cargar datos de 'users' (perfiles de autenticación extendidos)
   const fetchUsers = useCallback(async () => {
     if (!isDbInitialized || !db) return;
-
     setUsersLoading(true);
     setUsersError(null);
-
     try {
+      /* ... tu lógica de fetchUsers ... */
       const usersCollectionRef = collection(db, "users");
       const q = query(usersCollectionRef, orderBy("email"));
       const querySnapshot = await getDocs(q);
       const data: DashboardUser[] = [];
-
       querySnapshot.forEach((doc) => {
         const docData = doc.data();
         data.push({
@@ -232,19 +218,16 @@ const HRDashboard: React.FC = () => {
     }
   }, [isDbInitialized]);
 
-  // Cargar datos de 'candidateInvitations'
   const fetchInvitations = useCallback(async () => {
     if (!isDbInitialized || !db) return;
-
     setInvitationsLoading(true);
     setInvitationsError(null);
-
     try {
+      /* ... tu lógica de fetchInvitations ... */
       const invitationsCollectionRef = collection(db, "candidateInvitations");
       const q = query(invitationsCollectionRef, orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
       const data: Invitation[] = [];
-
       querySnapshot.forEach((doc) => {
         const docData = doc.data();
         data.push({
@@ -277,8 +260,14 @@ const HRDashboard: React.FC = () => {
 
   // --- Efecto para cargar datos al inicializar la DB o cambiar de pestaña ---
   useEffect(() => {
-    if (isDbInitialized && !authLoading && user) {
-      // Solo cargar si DB y Auth están inicializados Y hay un usuario
+    // *** CAMBIO CLAVE: Esperar a que 'loadingUserStatus' sea false y a que haya un usuario ***
+    // La carga de datos específicos (empleados, usuarios, invitaciones) solo
+    // se inicia cuando la DB está inicializada, el AuthProvider ha terminado de cargar
+    // el estado del usuario y su rol, y hay un usuario autenticado.
+    if (isDbInitialized && !loadingUserStatus && user) {
+      console.log(
+        "HRDashboard: Efecto de carga de datos disparado (Auth/DB listos)."
+      );
       if (activeTab === "employee-data") {
         fetchEmployeeData();
       } else if (activeTab === "users") {
@@ -286,11 +275,19 @@ const HRDashboard: React.FC = () => {
       } else if (activeTab === "invitations") {
         fetchInvitations();
       }
+    } else if (!isDbInitialized) {
+      console.log("HRDashboard: Esperando inicialización de DB.");
+    } else if (loadingUserStatus) {
+      console.log(
+        "HRDashboard: Esperando autenticación y carga de rol del AuthProvider."
+      );
+    } else if (!user) {
+      console.log("HRDashboard: No hay usuario autenticado para cargar datos.");
     }
   }, [
     isDbInitialized,
-    authLoading, // Añadir a las dependencias
-    user, // Añadir a las dependencias
+    loadingUserStatus, // <-- Nueva dependencia
+    user, // <-- Nueva dependencia
     activeTab,
     fetchEmployeeData,
     fetchUsers,
@@ -336,9 +333,9 @@ const HRDashboard: React.FC = () => {
   // Manejar la generación de invitación (ahora con DNI, Clave y Rol)
   const handleGenerateInvitation = useCallback(
     async (dni: string, key: string, role: string) => {
-      // *** CAMBIO CLAVE AQUÍ: Usar currentUserId real del hook ***
-      if (!currentUserId) {
-        // user.uid será null si no hay user
+      // *** CAMBIO CLAVE: user.uid ahora proviene del contexto de AuthProvider ***
+      if (!user || !user.uid) {
+        // Verificar si user es null o si user.uid es null/undefined
         throw new Error("Usuario no autenticado. Por favor, inicie sesión.");
       }
 
@@ -350,12 +347,13 @@ const HRDashboard: React.FC = () => {
       );
 
       try {
+        // Se pasan DNI, Clave y Rol
         const result = await generateInvitationCallable({
           dni,
           key,
           role,
-          createdBy: currentUserId,
-        });
+          createdBy: user.uid,
+        }); // Usar user.uid
         const newInvitationData = result.data as Invitation;
 
         setInvitations((prevInvitations) => [
@@ -383,13 +381,12 @@ const HRDashboard: React.FC = () => {
         setGeneratingInvitation(false);
       }
     },
-    [currentUserId]
+    [user] // <-- Dependencia de 'user'
   );
 
   // Manejar descarga de datos de empleados
   const handleEmployeeDataDownload = useCallback(() => {
     try {
-      // Encabezados
       const headers = [
         "#",
         "Nombre",
@@ -404,10 +401,8 @@ const HRDashboard: React.FC = () => {
         "Estado",
       ];
 
-      // Datos
       const rows = employees.map((employee, index) => {
-        // Ahora employee es de tipo EmployeeDataRecord, que tiene personalData
-        const pData = employee.personalData; // Accede directamente a personalData
+        const pData = employee.personalData;
 
         return [
           (index + 1).toString(),
@@ -424,13 +419,11 @@ const HRDashboard: React.FC = () => {
         ];
       });
 
-      // Crear contenido CSV
       const csvContent = [
         headers.join(","),
         ...rows.map((row) => row.join(",")),
       ].join("\n");
 
-      // Crear blob y descargar
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -474,28 +467,42 @@ const HRDashboard: React.FC = () => {
     );
   }
 
-  // Muestra un spinner mientras se inicializan la DB o la autenticación
-  if (!isDbInitialized || authLoading) {
+  // Si hay un error del AuthProvider, mostrarlo.
+  if (hasError) {
+    return (
+      <Container className="mt-5">
+        <Alert variant="danger">
+          <strong>Error de autenticación:</strong> {errorDetails}
+          <div className="mt-3">
+            <Button variant="primary" onClick={() => window.location.reload()}>
+              Recargar página
+            </Button>
+          </div>
+        </Alert>
+      </Container>
+    );
+  }
+
+  // Muestra un spinner mientras se inicializan la DB o el AuthProvider está cargando
+  if (!isDbInitialized || loadingUserStatus) {
     return (
       <Container className="mt-5 text-center">
         <Spinner animation="border" variant="primary" />
         <p className="mt-2">
-          {authLoading
-            ? "Verificando autenticación..."
+          {loadingUserStatus
+            ? "Verificando autenticación y rol..."
             : "Inicializando base de datos..."}
         </p>
       </Container>
     );
   }
 
-  // Si no hay un usuario autenticado (user es null después de authLoading)
+  // Si no hay un usuario autenticado (user es null después de que AuthProvider terminó de cargar)
   if (!user) {
-    // 'user' viene del hook useAuth
     return (
       <Container className="mt-5">
         <Alert variant="warning">
           Debe iniciar sesión para acceder al Dashboard de RRHH.
-          {/* Aquí podrías añadir un botón o enlace a tu página de login */}
           <div className="mt-3">
             <Button
               variant="primary" /* onClick={() => router.push('/login')} */
@@ -508,9 +515,8 @@ const HRDashboard: React.FC = () => {
     );
   }
 
-  // *** CAMBIO CLAVE: Verificación de rol para acceder al Dashboard ***
-  // Si el usuario está logeado, pero su rol no es uno de los autorizados para este dashboard
-  const authorizedDashboardRoles = ["root", "admin principal", "rrhh admin"]; // Roles con acceso total al dashboard
+  // Verificación de rol para acceder al Dashboard
+  const authorizedDashboardRoles = ["root", "admin principal", "rrhh admin"];
 
   if (!userRole || !authorizedDashboardRoles.includes(userRole)) {
     return (
@@ -528,12 +534,11 @@ const HRDashboard: React.FC = () => {
       <Row className="mb-4">
         <Col>
           <h2>Dashboard de RRHH</h2>
-          {user &&
-            userRole && ( // Mostrar el rol del usuario actual
-              <p className="text-muted">
-                Conectado como: {user.email} (Rol: {userRole})
-              </p>
-            )}
+          {user && userRole && (
+            <p className="text-muted">
+              Conectado como: {user.email} (Rol: {userRole})
+            </p>
+          )}
         </Col>
       </Row>
 
@@ -564,7 +569,7 @@ const HRDashboard: React.FC = () => {
             loading={usersLoading}
             error={usersError}
             onChangeRole={handleChangeUserRole}
-            availableRoles={ALL_APP_ROLES} // Usar ALL_APP_ROLES aquí si UsersTable permite asignar todos los roles
+            availableRoles={ALL_APP_ROLES}
           />
         </Tab>
 
@@ -575,7 +580,6 @@ const HRDashboard: React.FC = () => {
             loading={invitationsLoading}
             error={invitationsError}
           />
-          {/* Pasar INVITE_ROLES al InvitationForm para los roles que se pueden invitar */}
           <InvitationForm
             onGenerateInvitation={handleGenerateInvitation}
             generating={generatingInvitation}
