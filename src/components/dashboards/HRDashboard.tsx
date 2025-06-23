@@ -10,7 +10,7 @@ import {
   Alert,
   Tabs,
   Tab,
-  Button, // Para el botón de recarga
+  Button,
 } from "react-bootstrap";
 import { db } from "@/firebase/clientApp"; // Firestore Client SDK instance
 import {
@@ -20,10 +20,13 @@ import {
   orderBy,
   where,
   Timestamp,
-    doc,
-  
+  // Ya no necesitamos 'doc' ni 'setDoc' directamente aquí para crear invitaciones,
+  // ya que se hará a través de Cloud Functions.
 } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
+
+// *** Importar getFunctions y httpsCallable para llamar a Cloud Functions ***
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Importar interfaces de datos del dashboard
 import {
@@ -36,32 +39,31 @@ import {
 import UsersTable from "../UsersTable";
 import EmployeeDataTable from "../EmployeeDataTable";
 import InvitationsTable from "../InvitationsTable";
-import InvitationForm from "../InvitationForm";
+import InvitationForm from "../InvitationForm"; // Asegúrate de que InvitationForm se actualice para DNI y Clave.
 
-// Importar el tipo EmployeeSearchField desde EmployeeDataTable
-// Asumo que EmployeeDataTable define y exporta este tipo
 import { EmployeeSearchField } from "../EmployeeDataTable";
 
-// --- NOTA IMPORTANTE DE SEGURIDAD ---
-// Las operaciones de cambiar roles (en la colección 'users') y crear invitaciones
-// (en la colección 'candidateInvitations') DEBEN ejecutarse en un entorno de backend seguro
+// --- NOTA IMPORTANTE DE SEGURIDAD (REAFIRMADA) ---
+// Las operaciones de cambiar roles y crear invitaciones DEBEN ejecutarse en un entorno de backend seguro
 // (Cloud Function, API Route en App Hosting, etc.) usando la Firebase Admin SDK.
-// El código a continuación mostrará cómo el frontend *llamaría* a estas funciones de backend.
-// DEBES IMPLEMENTAR ESTAS FUNCIONES DE BACKEND POR SEPARADO.
+// El código a continuación mostrará cómo el frontend LLAMARÁ a estas funciones de backend.
+// DEBES IMPLEMENTAR ESTAS FUNCIONES DE BACKEND POR SEPARADO (en tu carpeta `functions` para Cloud Functions).
 // --- FIN NOTA DE SEGURIDAD ---
 
-// Roles disponibles para la aplicación
-const AVAILABLE_ROLES = ["user", "RRHH-Admin", "admin"]; // Define tus roles aquí
-const INVITE_ROLES = ["user"]; // Roles que se pueden asignar al invitar (ej: no permitir invitar admins directamente)
+// *** MODIFICACIÓN CLAVE: Roles disponibles para la aplicación ***
+// Define todos los roles que tu aplicación maneja
+const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin", "user"]; // Incluye "user" si lo usas genéricamente.
+// Roles que se pueden asignar al invitar
+// Aquí incluimos los roles específicos que el usuario solicitó
+const INVITE_ROLES = ["colaborador", "datos", "rrhh"]; // Excluye "admin" por seguridad.
 
 // --- Componente Principal HRDashboard ---
 const HRDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState("employee-data"); // Estado para controlar la pestaña activa
+  const [activeTab, setActiveTab] = useState("employee-data");
 
   // Estados para datos de employee-data
   const [employees, setEmployees] = useState<EmployeeDataRecord[]>([]);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
-  // ¡Cambio aquí! Usar EmployeeSearchField para el estado de campo de búsqueda
   const [employeeSearchField, setEmployeeSearchField] =
     useState<EmployeeSearchField>("personalData.dni");
   const [employeeDataLoading, setEmployeeDataLoading] = useState(true);
@@ -80,20 +82,25 @@ const HRDashboard: React.FC = () => {
   const [invitationsError, setInvitationsError] = useState<string | null>(null);
   const [generatingInvitation, setGeneratingInvitation] = useState(false);
 
-  // Estado para la inicialización de DB
+  // Estado para la inicialización de DB y Functions
   const [isDbInitialized, setIsDbInitialized] = useState(false);
   const [dbInitError, setDbInitError] = useState<string | null>(null);
 
   // Asumo que tienes una forma de obtener el UID del usuario actual
   // Esto es crucial para `createdBy` en invitaciones.
   // Ejemplo: import { useAuth } from '@/context/AuthContext'; const { currentUser } = useAuth();
-  const currentUserId = "admin_user_id"; // <-- ¡REEMPLAZA ESTO CON EL UID REAL DEL ADMIN AUTENTICADO!
+  // *** IMPORTANTE: REEMPLAZA ESTO CON EL UID REAL DEL ADMIN AUTENTICADO ***
+  const currentUserId = "admin_user_id"; // <-- ¡ESTO DEBE SER EL UID REAL DEL USUARIO!
 
   // --- Efecto para verificar inicialización de Firebase ---
   useEffect(() => {
     if (db) {
       setIsDbInitialized(true);
+      // Opcional: inicializar funciones aquí si no lo haces globalmente
+      // const functions = getFunctions();
+      // httpsCallable(functions, 'someFunction'); // Ejemplo de uso para asegurar la inicialización
     } else {
+      // Tu lógica de reintento para la DB
       const intervalId = setInterval(() => {
         if (db) {
           setIsDbInitialized(true);
@@ -126,11 +133,6 @@ const HRDashboard: React.FC = () => {
 
     try {
       let q;
-      // Aquí el campo de búsqueda debe ser la ruta anidada
-      // Nota: Firestore REQUIERE un índice para consultas donde se combina 'where' y 'orderBy'
-      // en campos diferentes, o para 'where' en campos anidados.
-      // Si employeeSearchField es 'personalData.dni', 'personalData.nombre', etc., entonces
-      // la consulta debe usar esos mismos nombres de campo.
       if (employeeSearchTerm) {
         q = query(
           collection(db, "employee-data"),
@@ -139,7 +141,6 @@ const HRDashboard: React.FC = () => {
           orderBy(employeeSearchField)
         );
       } else {
-        // Ordena por el campo anidado 'personalData.apellido' por defecto
         q = query(
           collection(db, "employee-data"),
           orderBy("personalData.apellido")
@@ -153,7 +154,6 @@ const HRDashboard: React.FC = () => {
         const docData = doc.data();
         data.push({
           id: doc.id,
-          // Mapea el objeto completo de PersonalData
           personalData: {
             nombre: docData.personalData?.nombre || "",
             apellido: docData.personalData?.apellido || "",
@@ -168,9 +168,8 @@ const HRDashboard: React.FC = () => {
             genero: docData.personalData?.genero || "",
             estadoCivil: docData.personalData?.estadoCivil || "",
           },
-          status: docData.status || "unknown", // Asegúrate que tu EmployeeData tiene un campo 'status'
+          status: docData.status || "unknown",
           createdAt: docData.createdAt?.toDate() || null,
-          // Añade otros campos raíz si los necesitas, ej: invitationId, submittedAt
           invitationId: docData.invitationId || undefined,
           submittedAt: docData.submittedAt?.toDate() || null,
         });
@@ -188,7 +187,7 @@ const HRDashboard: React.FC = () => {
     } finally {
       setEmployeeDataLoading(false);
     }
-  }, [isDbInitialized, employeeSearchTerm, employeeSearchField]); // <-- Dependencias actualizadas
+  }, [isDbInitialized, employeeSearchTerm, employeeSearchField]);
 
   // Cargar datos de 'users' (perfiles de autenticación extendidos)
   const fetchUsers = useCallback(async () => {
@@ -244,6 +243,8 @@ const HRDashboard: React.FC = () => {
         data.push({
           id: doc.id,
           email: docData.email || "",
+          dni: docData.dni || undefined, // Mapear el nuevo campo DNI
+          key: docData.key || undefined, // Mapear el nuevo campo Clave
           role: docData.role || "user",
           createdAt: docData.createdAt || Timestamp.now(),
           createdBy: docData.createdBy || "unknown",
@@ -291,77 +292,91 @@ const HRDashboard: React.FC = () => {
   // Manejar el cambio de rol (llama a un backend seguro)
   const handleChangeUserRole = useCallback(
     async (userId: string, newRole: string) => {
-      // Placeholder: LLAMADA REAL A LA FUNCIÓN DE BACKEND
       // Este es un ejemplo para una Cloud Function invocable por HTTPS:
-      // import { getFunctions, httpsCallable } from "firebase/functions";
-      // const functions = getFunctions();
-      // const changeUserRoleCallable = httpsCallable(functions, 'changeUserRole');
-      // await changeUserRoleCallable({ userId, newRole });
+      const functions = getFunctions();
+      const changeUserRoleCallable = httpsCallable(functions, "changeUserRole");
 
-      // Placeholder: Simular llamada a backend para cambiar rol
-      console.log(
-        `[BACKEND CALL] Cambiando rol de usuario ${userId} a ${newRole}`
-      );
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simula latencia
-      console.log(`[BACKEND CALL] Rol cambiado exitosamente para ${userId}.`);
+      try {
+        setUsersLoading(true); // Podrías poner un spinner o indicador específico para el usuario
+        await changeUserRoleCallable({ userId, newRole });
+        console.log(
+          `Rol de usuario ${userId} cambiado exitosamente a ${newRole}.`
+        );
 
-      // Después del éxito del backend, actualiza el estado local o recarga los datos
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId ? { ...user, role: newRole } : user
-        )
-      );
-      // O para ser más seguro, puedes volver a llamar a fetchUsers();
+        // Después del éxito del backend, actualiza el estado local
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.id === userId ? { ...user, role: newRole } : user
+          )
+        );
+      } catch (err) {
+        console.error("Error cambiando rol de usuario:", err);
+        let errorMessage = "Error al cambiar el rol.";
+        if (err instanceof FirebaseError) {
+          errorMessage += `: ${err.message}`;
+        } else if (err instanceof Error) {
+          errorMessage += `: ${err.message}`;
+        }
+        alert(errorMessage); // Mostrar un error al usuario
+      } finally {
+        setUsersLoading(false); // Ocultar spinner
+      }
     },
     []
   );
 
-  // Manejar la generación de invitación (llama a un backend seguro)
+  // *** MODIFICACIÓN CLAVE: Manejar la generación de invitación (llama a un backend seguro) ***
   const handleGenerateInvitation = useCallback(
-    async (email: string, role: string) => {
-      if (!currentUserId) {
-        // Asegúrate de que el admin está logueado
+    async (email: string, role: string, dni?: string, key?: string) => {
+      // Nuevos argumentos: dni y key
+      if (!currentUserId || currentUserId === "admin_user_id") {
         throw new Error(
-          "Usuario administrador no autenticado para generar invitación."
+          "Usuario administrador no autenticado o ID de usuario de prueba. No se puede generar invitación."
         );
       }
 
       setGeneratingInvitation(true);
+      const functions = getFunctions();
+      const generateInvitationCallable = httpsCallable(
+        functions,
+        "generateInvitation"
+      ); // Nombre de tu Cloud Function
+
       try {
-        // Placeholder: LLAMADA REAL A LA FUNCIÓN DE BACKEND
-        // Este es un ejemplo para una Cloud Function invocable por HTTPS:
-        // import { getFunctions, httpsCallable } from "firebase/functions";
-        // const functions = getFunctions();
-        // const generateInvitationCallable = httpsCallable(functions, 'generateInvitation');
-        // await generateInvitationCallable({ email, role, createdBy: currentUserId });
-
-        // Placeholder: Simular llamada a backend para generar invitación
-        console.log(
-          `[BACKEND CALL] Generando invitación para ${email} con rol ${role} por ${currentUserId}`
-        );
-        const newInvitationDocRef = doc(collection(db, "candidateInvitations")); // Genera un ID de documento local
-        await new Promise((resolve) => setTimeout(resolve, 1500)); // Simula latencia
-
-        // Actualiza el estado local con la nueva invitación
-        const newInvitation: Invitation = {
-          id: newInvitationDocRef.id,
+        // Llamada a la Cloud Function para generar y persistir la invitación
+        const result = await generateInvitationCallable({
           email,
           role,
-          createdAt: Timestamp.now(),
+          dni,
+          key,
           createdBy: currentUserId,
-          used: false,
-        };
+        });
+        const newInvitationData = result.data as Invitation; // Asume que la función devuelve la invitación creada
+
+        // Actualiza el estado local con la nueva invitación devuelta por la CF
         setInvitations((prevInvitations) => [
-          newInvitation,
+          {
+            ...newInvitationData,
+            // Asegurarse de que createdAt es un Timestamp si la Cloud Function lo devuelve como tal
+            createdAt: newInvitationData.createdAt || Timestamp.now(),
+          },
           ...prevInvitations,
-        ]); // Añadir al inicio
+        ]);
 
         console.log(
-          `[BACKEND CALL] Invitación generada exitosamente para ${email}.`
+          `Invitación generada y guardada exitosamente para ${email}. ID: ${newInvitationData.id}`
         );
+        return "Invitación generada exitosamente!"; // Devolver mensaje de éxito para el InvitationForm
       } catch (err) {
         console.error("Error generando invitación:", err);
-        throw err; // Relanzar para que el componente InvitationForm lo maneje
+        let errorMessage = "Error al generar la invitación.";
+        if (err instanceof FirebaseError) {
+          errorMessage += `: ${err.message}`;
+        } else if (err instanceof Error) {
+          errorMessage += `: ${err.message}`;
+        }
+        // No alertamos directamente aquí, lanzamos el error para que InvitationForm lo maneje
+        throw new Error(errorMessage);
       } finally {
         setGeneratingInvitation(false);
       }
@@ -500,7 +515,7 @@ const HRDashboard: React.FC = () => {
             loading={usersLoading}
             error={usersError}
             onChangeRole={handleChangeUserRole}
-            availableRoles={AVAILABLE_ROLES}
+            availableRoles={ALL_APP_ROLES} // Usar ALL_APP_ROLES aquí si UserTable permite asignar todos los roles
           />
         </Tab>
 
@@ -511,10 +526,11 @@ const HRDashboard: React.FC = () => {
             loading={invitationsLoading}
             error={invitationsError}
           />
+          {/* *** MODIFICACIÓN CLAVE: Pasar INVITE_ROLES al InvitationForm *** */}
           <InvitationForm
             onGenerateInvitation={handleGenerateInvitation}
             generating={generatingInvitation}
-            availableRoles={INVITE_ROLES}
+            availableRoles={INVITE_ROLES} // <-- Usar INVITE_ROLES
           />
         </Tab>
       </Tabs>
