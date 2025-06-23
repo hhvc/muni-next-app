@@ -25,6 +25,9 @@ import { FirebaseError } from "firebase/app";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 
+// *** CAMBIO CLAVE: Importar tu hook useAuth ***
+import { useAuth } from "@/hooks/useAuth"; // Asegúrate de que esta ruta sea correcta
+
 // Importar interfaces de datos del dashboard
 import {
   DashboardUser,
@@ -36,7 +39,7 @@ import {
 import UsersTable from "../UsersTable";
 import EmployeeDataTable from "../EmployeeDataTable";
 import InvitationsTable from "../InvitationsTable";
-import InvitationForm from "../InvitationForm"; // Asegúrate de que InvitationForm se actualice para DNI y Clave.
+import InvitationForm from "../InvitationForm";
 
 import { EmployeeSearchField } from "../EmployeeDataTable";
 
@@ -48,9 +51,16 @@ import { EmployeeSearchField } from "../EmployeeDataTable";
 // --- FIN NOTA DE SEGURIDAD ---
 
 // Define todos los roles que tu aplicación maneja
-const ALL_APP_ROLES = ["colaborador", "datos", "rrhh", "admin principal", "rrhh admin", "root"];
+const ALL_APP_ROLES = [
+  "root",
+  "rrhh",
+  "colaborador",
+  "datos",
+  "admin principal",
+  "rrhh admin",
+];
 // Roles que se pueden asignar al invitar
-const INVITE_ROLES = ["colaborador", "datos", "rrhh"]; // Puedes añadir "user" si lo consideras apropiado aquí.
+const INVITE_ROLES = ["rrhh", "colaborador", "datos"];
 
 // --- Componente Principal HRDashboard ---
 const HRDashboard: React.FC = () => {
@@ -77,22 +87,19 @@ const HRDashboard: React.FC = () => {
   const [invitationsError, setInvitationsError] = useState<string | null>(null);
   const [generatingInvitation, setGeneratingInvitation] = useState(false);
 
-  // Estado para la inicialización de DB y Functions
+  // Estado para la inicialización de DB
   const [isDbInitialized, setIsDbInitialized] = useState(false);
   const [dbInitError, setDbInitError] = useState<string | null>(null);
 
-  // Asumo que tienes una forma de obtener el UID del usuario actual
-  // Esto es crucial para `createdBy` en invitaciones.
-  // Ejemplo: import { useAuth } from '@/context/AuthContext'; const { currentUser } = useAuth();
-  // *** IMPORTANTE: REEMPLAZA ESTO CON EL UID REAL DEL ADMIN AUTENTICADO ***
-  const currentUserId = "admin_user_id"; // <-- ¡ESTO DEBE SER EL UID REAL DEL USUARIO!
+  // *** CAMBIO CLAVE: Consumir el hook useAuth ***
+  const { user, userRole, loading: authLoading } = useAuth(); // 'user' es el objeto User, 'userRole' el rol de Firestore
+  const currentUserId = user?.uid || null; // Obtenemos el UID si el usuario existe, si no, null
 
-  // --- Efecto para verificar inicialización de Firebase ---
+  // --- Efecto para verificar inicialización de Firebase DB (la autenticación la maneja useAuth) ---
   useEffect(() => {
     if (db) {
       setIsDbInitialized(true);
     } else {
-      // Tu lógica de reintento para la DB
       const intervalId = setInterval(() => {
         if (db) {
           setIsDbInitialized(true);
@@ -112,7 +119,7 @@ const HRDashboard: React.FC = () => {
         clearTimeout(timeoutId);
       };
     }
-  }, []);
+  }, []); // Solo depende de la inicialización de DB
 
   // --- Funciones para cargar datos ---
 
@@ -234,9 +241,9 @@ const HRDashboard: React.FC = () => {
         const docData = doc.data();
         data.push({
           id: doc.id,
-          email: docData.email || undefined, // Email ahora es opcional/indefinido en la creación
-          dni: docData.dni || "", // Mapear el campo DNI (ahora obligatorio en la creación)
-          key: docData.key || "", // Mapear el campo Clave (ahora obligatorio en la creación)
+          email: docData.email || undefined,
+          dni: docData.dni || "",
+          key: docData.key || "",
           role: docData.role || "user",
           createdAt: docData.createdAt || Timestamp.now(),
           createdBy: docData.createdBy || "unknown",
@@ -262,7 +269,8 @@ const HRDashboard: React.FC = () => {
 
   // --- Efecto para cargar datos al inicializar la DB o cambiar de pestaña ---
   useEffect(() => {
-    if (isDbInitialized) {
+    if (isDbInitialized && !authLoading && user) {
+      // Solo cargar si DB y Auth están inicializados Y hay un usuario
       if (activeTab === "employee-data") {
         fetchEmployeeData();
       } else if (activeTab === "users") {
@@ -273,6 +281,8 @@ const HRDashboard: React.FC = () => {
     }
   }, [
     isDbInitialized,
+    authLoading, // Añadir a las dependencias
+    user, // Añadir a las dependencias
     activeTab,
     fetchEmployeeData,
     fetchUsers,
@@ -315,14 +325,13 @@ const HRDashboard: React.FC = () => {
     []
   );
 
-  // *** CAMBIO CLAVE: Manejar la generación de invitación (ahora con DNI, Clave y Rol) ***
+  // Manejar la generación de invitación (ahora con DNI, Clave y Rol)
   const handleGenerateInvitation = useCallback(
     async (dni: string, key: string, role: string) => {
-      // Nuevos argumentos
-      if (!currentUserId || currentUserId === "admin_user_id") {
-        throw new Error(
-          "Usuario administrador no autenticado o ID de usuario de prueba. No se puede generar invitación."
-        );
+      // *** CAMBIO CLAVE AQUÍ: Usar currentUserId real del hook ***
+      if (!currentUserId) {
+        // user.uid será null si no hay user
+        throw new Error("Usuario no autenticado. Por favor, inicie sesión.");
       }
 
       setGeneratingInvitation(true);
@@ -333,8 +342,6 @@ const HRDashboard: React.FC = () => {
       );
 
       try {
-        // Llamada a la Cloud Function para generar y persistir la invitación
-        // Se pasan DNI, Clave y Rol
         const result = await generateInvitationCallable({
           dni,
           key,
@@ -343,7 +350,6 @@ const HRDashboard: React.FC = () => {
         });
         const newInvitationData = result.data as Invitation;
 
-        // Actualiza el estado local con la nueva invitación devuelta por la CF
         setInvitations((prevInvitations) => [
           {
             ...newInvitationData,
@@ -355,7 +361,7 @@ const HRDashboard: React.FC = () => {
         console.log(
           `Invitación para DNI: ${dni} generada y guardada exitosamente.`
         );
-        return `Invitación para DNI: ${dni} generada exitosamente!`; // Devolver mensaje de éxito para el InvitationForm
+        return `Invitación para DNI: ${dni} generada exitosamente!`;
       } catch (err: unknown) {
         console.error("Error generando invitación:", err);
         let errorMessage = "Error al generar la invitación.";
@@ -375,6 +381,7 @@ const HRDashboard: React.FC = () => {
   // Manejar descarga de datos de empleados
   const handleEmployeeDataDownload = useCallback(() => {
     try {
+      // Encabezados
       const headers = [
         "#",
         "Nombre",
@@ -389,8 +396,10 @@ const HRDashboard: React.FC = () => {
         "Estado",
       ];
 
+      // Datos
       const rows = employees.map((employee, index) => {
-        const pData = employee.personalData;
+        // Ahora employee es de tipo EmployeeDataRecord, que tiene personalData
+        const pData = employee.personalData; // Accede directamente a personalData
 
         return [
           (index + 1).toString(),
@@ -407,11 +416,13 @@ const HRDashboard: React.FC = () => {
         ];
       });
 
+      // Crear contenido CSV
       const csvContent = [
         headers.join(","),
         ...rows.map((row) => row.join(",")),
       ].join("\n");
 
+      // Crear blob y descargar
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -439,6 +450,7 @@ const HRDashboard: React.FC = () => {
   );
 
   // --- Renderizado Condicional ---
+  // Muestra errores de inicialización de la base de datos
   if (dbInitError) {
     return (
       <Container className="mt-5">
@@ -454,11 +466,51 @@ const HRDashboard: React.FC = () => {
     );
   }
 
-  if (!isDbInitialized) {
+  // Muestra un spinner mientras se inicializan la DB o la autenticación
+  if (!isDbInitialized || authLoading) {
     return (
       <Container className="mt-5 text-center">
         <Spinner animation="border" variant="primary" />
-        <p className="mt-2">Inicializando base de datos...</p>
+        <p className="mt-2">
+          {authLoading
+            ? "Verificando autenticación..."
+            : "Inicializando base de datos..."}
+        </p>
+      </Container>
+    );
+  }
+
+  // Si no hay un usuario autenticado (user es null después de authLoading)
+  if (!user) {
+    // 'user' viene del hook useAuth
+    return (
+      <Container className="mt-5">
+        <Alert variant="warning">
+          Debe iniciar sesión para acceder al Dashboard de RRHH.
+          {/* Aquí podrías añadir un botón o enlace a tu página de login */}
+          <div className="mt-3">
+            <Button
+              variant="primary" /* onClick={() => router.push('/login')} */
+            >
+              Ir a Iniciar Sesión
+            </Button>
+          </div>
+        </Alert>
+      </Container>
+    );
+  }
+
+  // *** CAMBIO CLAVE: Verificación de rol para acceder al Dashboard ***
+  // Si el usuario está logeado, pero su rol no es uno de los autorizados para este dashboard
+  const authorizedDashboardRoles = ["root", "admin principal", "rrhh admin"]; // Roles con acceso total al dashboard
+
+  if (!userRole || !authorizedDashboardRoles.includes(userRole)) {
+    return (
+      <Container className="mt-5">
+        <Alert variant="danger">
+          Acceso denegado. No tienes los permisos necesarios para ver este
+          dashboard.
+        </Alert>
       </Container>
     );
   }
@@ -468,6 +520,12 @@ const HRDashboard: React.FC = () => {
       <Row className="mb-4">
         <Col>
           <h2>Dashboard de RRHH</h2>
+          {user &&
+            userRole && ( // Mostrar el rol del usuario actual
+              <p className="text-muted">
+                Conectado como: {user.email} (Rol: {userRole})
+              </p>
+            )}
         </Col>
       </Row>
 
@@ -498,7 +556,7 @@ const HRDashboard: React.FC = () => {
             loading={usersLoading}
             error={usersError}
             onChangeRole={handleChangeUserRole}
-            availableRoles={ALL_APP_ROLES} // Usar ALL_APP_ROLES aquí si UserTable permite asignar todos los roles
+            availableRoles={ALL_APP_ROLES} // Usar ALL_APP_ROLES aquí si UsersTable permite asignar todos los roles
           />
         </Tab>
 
@@ -509,11 +567,11 @@ const HRDashboard: React.FC = () => {
             loading={invitationsLoading}
             error={invitationsError}
           />
-          {/* *** MODIFICACIÓN CLAVE: Pasar INVITE_ROLES al InvitationForm *** */}
+          {/* Pasar INVITE_ROLES al InvitationForm para los roles que se pueden invitar */}
           <InvitationForm
             onGenerateInvitation={handleGenerateInvitation}
             generating={generatingInvitation}
-            availableRoles={INVITE_ROLES} // <-- Usar INVITE_ROLES para los roles que se pueden invitar
+            availableRoles={INVITE_ROLES}
           />
         </Tab>
       </Tabs>
