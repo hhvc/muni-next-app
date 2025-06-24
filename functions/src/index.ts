@@ -1,7 +1,12 @@
+// functions/src/index.ts
+
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 // ✅ No necesitamos importar CallableContext si accedemos vía request.auth
 // import { CallableContext } from 'firebase-functions/v1/https'; // <-- Esta importación ya no es necesaria si accedes vía request.auth
+
+// *** CAMBIO CLAVE AQUÍ: Importar tu función generateInvitation ***
+import { generateInvitation as generateInvitationFunction } from "./invitations"; // Renombramos para evitar conflicto de nombres con 'functions.https.onCall' si hubiera uno, aunque no es estrictamente necesario aquí.
 
 // Inicialización de Firebase Admin usando las credenciales automáticas del entorno
 try {
@@ -20,6 +25,7 @@ try {
 }
 
 // Función HTTP 'hello'
+// Esta función `onRequest` sigue usando la configuración manual de CORS, lo cual está bien para una onRequest si quieres controlar los orígenes.
 export const hello = functions.https.onRequest((req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -42,7 +48,8 @@ export const hello = functions.https.onRequest((req, res) => {
         : "production",
       projectId: firebaseConfig.projectId || "unknown",
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    // <-- Tipado para error
     functions.logger.error("Error en función hello:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   }
@@ -55,7 +62,6 @@ interface AddTestDataRequestData {
 }
 
 // Función callable 'addTestData' para Firestore
-// ✅ CORRECCIÓN CRÍTICA: La firma del handler debe aceptar un objeto `request` de tipo `CallableRequest<T>`
 export const addTestData = functions.https.onCall(
   async (request: functions.https.CallableRequest<AddTestDataRequestData>) => {
     try {
@@ -96,22 +102,33 @@ export const addTestData = functions.https.onCall(
         id: docRef.id,
         path: docRef.path,
       };
-    } catch (error) {
+    } catch (error: unknown) {
+      // <-- Tipado para error
       console.error("Error en addTestData:", error);
 
       if (error instanceof functions.https.HttpsError) {
         throw error;
       }
-
-      throw new functions.https.HttpsError(
-        "internal",
-        "Ocurrió un error al procesar tu solicitud.",
-        process.env.FUNCTIONS_EMULATOR
-          ? { details: error instanceof Error ? error.message : String(error) }
-          : undefined
-      );
+      // Asegurarse de que el error es de tipo Error antes de acceder a .message
+      if (error instanceof Error) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Ocurrió un error al procesar tu solicitud.",
+          process.env.FUNCTIONS_EMULATOR
+            ? { details: error.message }
+            : undefined
+        );
+      } else {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Ocurrió un error al procesar tu solicitud (error desconocido)."
+        );
+      }
     }
   }
 );
+
+// *** CAMBIO CLAVE AQUÍ: Exportar la función generateInvitation ***
+export const generateInvitation = generateInvitationFunction;
 
 // Puedes añadir aquí otras funciones...
