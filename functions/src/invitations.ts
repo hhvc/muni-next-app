@@ -5,6 +5,9 @@ import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // 0. Inicializa Firebase Admin SDK
+// Esto es importante para las pruebas en emuladores y para el despliegue.
+// Si ya tienes un archivo `index.ts` principal donde inicializas `admin.initializeApp()`,
+// asegúrate de no inicializarlo dos veces si este archivo se importa allí.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -39,6 +42,12 @@ export const generateInvitation = functions.https.onCall(
     functions.logger.info(
       `DEBUG CF: Datos recibidos del frontend: ${JSON.stringify(request.data)}`
     );
+    // *** NUEVO LOG CRÍTICO: CONFIRMAR EL ID DEL PROYECTO ***
+    functions.logger.info(
+      `DEBUG CF: Función conectada a Project ID: ${
+        admin.app().options.projectId
+      }`
+    );
     // --- FIN DEBUGGING INICIAL ---
 
     // 1. Autenticación y Autorización
@@ -69,6 +78,8 @@ export const generateInvitation = functions.https.onCall(
         .doc(callingUserId)
         .get();
 
+      // Estas líneas NO SE EJECUTARÁN si el `get()` lanza el 5 NOT_FOUND.
+      // Las mantengo para la lógica, pero la ejecución se detendrá antes de ellas si falla el get().
       functions.logger.info(`DEBUG CF: userDoc.exists: ${userDoc.exists}`);
       let userRole: string | undefined | null = null; // Inicializar a null
 
@@ -80,7 +91,7 @@ export const generateInvitation = functions.https.onCall(
         );
       } else {
         functions.logger.warn(
-          `DEBUG CF: Documento de usuario NO encontrado para UID: ${callingUserId}`
+          `DEBUG CF: Documento de usuario NO encontrado para UID: ${callingUserId} (después de .exists chequeo).`
         );
       }
 
@@ -126,7 +137,24 @@ export const generateInvitation = functions.https.onCall(
         "DEBUG CF: Error en el bloque de verificación de roles:",
         error
       );
-      if (error instanceof functions.https.HttpsError) {
+      // El error 5 NOT_FOUND se captura aquí.
+      // Si el error es un NOT_FOUND de Firestore, lo manejamos como un error de permisos.
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as any).code === 5 && // gRPC status code for NOT_FOUND
+        (error as any).details &&
+        (error as any).details.includes("NOT_FOUND") // Confirmar que es un NotFound de Firestore
+      ) {
+        functions.logger.error(
+          `DEBUG CF: Documento de usuario no encontrado para UID ${callingUserId} al verificar rol.`
+        );
+        throw new functions.https.HttpsError(
+          "permission-denied", // Convertir el NOT_FOUND en un error de permisos para el cliente
+          "No se pudo verificar su rol. Asegúrese de que su perfil de usuario exista en Firestore."
+        );
+      } else if (error instanceof functions.https.HttpsError) {
         throw error; // Re-lanzar el error HttpsError original
       }
       throw new functions.https.HttpsError(
