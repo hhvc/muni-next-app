@@ -5,7 +5,7 @@ import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // 0. Inicializa Firebase Admin SDK
-// Esto es importante para las pruebas en emuladores y para el despliegue.
+// Es importante para las pruebas en emuladores y para el despliegue.
 // Si ya tienes un archivo `index.ts` principal donde inicializas `admin.initializeApp()`,
 // asegúrate de no inicializarlo dos veces si este archivo se importa allí.
 if (!admin.apps.length) {
@@ -69,6 +69,20 @@ export const generateInvitation = functions.https.onCall(
     functions.logger.info(
       `DEBUG CF: Intentando obtener documento en ruta: ${userDocRefPath}`
     );
+
+    // --- AÑADIR ESTOS CONSOLE.LOGS PARA DEPURACIÓN ADICIONAL DEL UID ---
+    functions.logger.info(
+      `DEBUG CF: UID que se usa para el doc: "${callingUserId}"`
+    );
+    functions.logger.info(
+      `DEBUG CF: Longitud del UID: ${callingUserId.length}`
+    );
+    functions.logger.info(
+      `DEBUG CF: Es exactamente 'FxTIyQbSx6UWsNNSKEuuBXl6FmG2'? ${
+        callingUserId === "FxTIyQbSx6UWsNNSKEuuBXl6FmG2"
+      }`
+    );
+    // --- FIN DEBUGGING ADICIONAL DEL UID ---
 
     try {
       // <-- ESTE ES EL 'TRY' DEL BLOQUE DE AUTORIZACIÓN
