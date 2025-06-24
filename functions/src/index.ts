@@ -4,53 +4,21 @@ import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import { generateInvitation as generateInvitationFunction } from "./invitations";
 
-// Inicialización de Firebase Admin para la app por defecto
+// Inicialización de Firebase Admin
 try {
   if (admin.apps.length === 0) {
     admin.initializeApp();
-    functions.logger.info(
-      "Firebase Admin inicializado correctamente para la app por defecto."
-    );
-  } else {
-    admin.app(); // Usa la instancia existente
+    functions.logger.info("Firebase Admin inicializado correctamente");
   }
 } catch (error) {
-  functions.logger.error(
-    "Error inicializando Firebase Admin por defecto:",
-    error
-  );
+  functions.logger.error("Error inicializando Firebase Admin:", error);
   throw error;
 }
 
-// 🔥 SOLUCIÓN CORRECTA: Crear una instancia de app específica para 'munidb'
-const getFirestoreForMunidb = () => {
-  try {
-    // Intentar obtener la app existente para 'munidb'
-    const munidbApp = admin.app("munidb");
-    functions.logger.info("Usando app existente para munidb");
-    return munidbApp.firestore();
-  } catch (e) {
-    // Si no existe, crear nueva app
-    // IMPORTANTE: Reemplaza con la URL real de tu base de datos
-    const databaseURL = "https://muni-22fa0-munidb.firebaseio.com";
-
-    functions.logger.info(
-      `Creando nueva app para munidb con URL: ${databaseURL}`
-    );
-
-    const munidbApp = admin.initializeApp(
-      {
-        databaseURL: databaseURL,
-      },
-      "munidb"
-    );
-
-    return munidbApp.firestore();
-  }
-};
-
-const db = getFirestoreForMunidb();
-functions.logger.info(`Firestore inicializado para base de datos: munidb`);
+const db = admin.firestore();
+functions.logger.info(
+  "Firestore inicializado para la base de datos por defecto"
+);
 
 // Función HTTP 'hello'
 export const hello = functions.https.onRequest((req, res) => {
@@ -74,7 +42,6 @@ export const hello = functions.https.onRequest((req, res) => {
         ? "development"
         : "production",
       projectId: firebaseConfig.projectId || "unknown",
-      database: "munidb", // Confirmación
     });
   } catch (error: unknown) {
     functions.logger.error("Error en función hello:", error);
@@ -95,19 +62,15 @@ export const addTestData = functions.https.onCall(
       const auth = request.auth;
       const uid = auth?.uid || "anonymous";
 
-      const messageToStore =
-        typeof data?.message === "string" && data.message.length > 0
-          ? data.message
-          : "Mensaje por defecto si no se proporciona o es vacío";
+      const messageToStore = data?.message || "Mensaje por defecto";
 
       functions.logger.info("Datos recibidos en addTestData:", data);
-      functions.logger.info("UID del usuario (o anonymous):", uid);
-      functions.logger.info("Usando base de datos: munidb");
+      functions.logger.info("UID del usuario:", uid);
 
-      // 🔥 CORRECCIÓN: Usar admin.firestore.FieldValue directamente
-      const docRef = await db.collection("test").add({
+      // Usar prefijo "munidb/" en la colección
+      const docRef = await db.collection("munidb/test").add({
         message: messageToStore,
-        created: admin.firestore.FieldValue.serverTimestamp(), // Corregido
+        created: admin.firestore.FieldValue.serverTimestamp(),
         uid: uid,
       });
 
@@ -117,29 +80,18 @@ export const addTestData = functions.https.onCall(
         success: true,
         id: docRef.id,
         path: docRef.path,
-        database: "munidb",
       };
     } catch (error: unknown) {
       functions.logger.error("Error en addTestData:", error);
 
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-
       if (error instanceof Error) {
         throw new functions.https.HttpsError(
           "internal",
-          "Ocurrió un error al procesar tu solicitud.",
-          process.env.FUNCTIONS_EMULATOR
-            ? { details: error.message }
-            : undefined
-        );
-      } else {
-        throw new functions.https.HttpsError(
-          "internal",
-          "Ocurrió un error al procesar tu solicitud (error desconocido)."
+          "Error interno",
+          process.env.FUNCTIONS_EMULATOR ? error.message : undefined
         );
       }
+      throw new functions.https.HttpsError("internal", "Error desconocido");
     }
   }
 );
