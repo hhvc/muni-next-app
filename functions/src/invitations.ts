@@ -93,7 +93,7 @@ export const generateInvitation = functions.https.onCall(
 
     try {
       // <-- ESTE ES EL 'TRY' DEL BLOQUE DE AUTORIZACIÓN
-      const userDoc = await db.collection("users").doc(callingUserId).get();
+      const userDoc = await db.collection("munidb/users").doc(callingUserId).get();
 
       // Estas líneas NO SE EJECUTARÁN si el `get()` lanza el 5 NOT_FOUND.
       functions.logger.info(`DEBUG CF: userDoc.exists: ${userDoc.exists}`);
