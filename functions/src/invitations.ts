@@ -37,9 +37,10 @@ interface GenerateInvitationRequestData {
 // Nombre de la Cloud Function: 'generateInvitation'
 export const generateInvitation = functions.https.onCall(
   async (request: CallableRequest<GenerateInvitationRequestData>) => {
-    // *** CAMBIO CLAVE AQUÍ: Inicializar `db` al principio de la función ***
-    // `admin.firestore()` sin argumentos te da la instancia de la base de datos (default).
-    const db = admin.firestore();
+    // *** CAMBIO CLAVE AQUÍ: Sintaxis CORRECTA para conectarse a una base de datos con nombre en Admin SDK ***
+    // 'admin.app()' te da la instancia de la aplicación Firebase por defecto.
+    // '.firestore('munidb')' se llama sobre esa instancia para obtener la DB con nombre.
+    const db = admin.app().firestore();
 
     // --- DEBUGGING INICIAL ---
     functions.logger.info(`DEBUG CF: Invocación de generateInvitation`);
@@ -51,6 +52,9 @@ export const generateInvitation = functions.https.onCall(
         admin.app().options.projectId
       }`
     );
+    functions.logger.info(
+      `DEBUG CF: Intentando conectar a Firestore Database ID: munidb`
+    ); // Nuevo log para confirmación
     // --- FIN DEBUGGING INICIAL ---
 
     // 1. Autenticación y Autorización
@@ -89,7 +93,6 @@ export const generateInvitation = functions.https.onCall(
 
     try {
       // <-- ESTE ES EL 'TRY' DEL BLOQUE DE AUTORIZACIÓN
-      // *** CAMBIO CLAVE AQUÍ: usar la instancia `db` ya declarada ***
       const userDoc = await db.collection("users").doc(callingUserId).get();
 
       // Estas líneas NO SE EJECUTARÁN si el `get()` lanza el 5 NOT_FOUND.
@@ -104,7 +107,7 @@ export const generateInvitation = functions.https.onCall(
         );
       } else {
         functions.logger.warn(
-          `DEBUG CF: Documento de usuario NO encontrado para UID: ${callingUserId} (después de .exists chequeo).`
+          `DEBUG CF: Documento de usuario NO encontrado para UID: ${callingUserId} (después de .exists chequeo). Esto es inesperado si el documento existe en 'munidb'.`
         );
       }
 
@@ -158,14 +161,14 @@ export const generateInvitation = functions.https.onCall(
         "code" in error &&
         (error as any).code === 5 && // gRPC status code for NOT_FOUND
         (error as any).details &&
-        (error as any).details.includes("NOT_FOUND")
+        (error as any).details.includes("NOT_FOUND") // Confirmar que es un NotFound de Firestore
       ) {
         functions.logger.error(
-          `DEBUG CF: Documento de usuario no encontrado para UID ${callingUserId} al verificar rol.`
+          `DEBUG CF: Documento de usuario NO encontrado en la base de datos 'munidb' para UID ${callingUserId}.`
         );
         throw new functions.https.HttpsError(
           "permission-denied", // Convertir el NOT_FOUND en un error de permisos para el cliente
-          "No se pudo verificar su rol. Asegúrese de que su perfil de usuario exista en Firestore."
+          "No se pudo verificar su rol. Asegúrese de que su perfil de usuario exista en Firestore (base de datos 'munidb')."
         );
       } else if (error instanceof functions.https.HttpsError) {
         throw error; // Re-lanzar el error HttpsError original
@@ -248,7 +251,7 @@ export const generateInvitation = functions.https.onCall(
     try {
       // <-- ESTE ES EL 'TRY' DEL BLOQUE DE PERSISTENCIA EN FIRESTORE
       // 4. Persistir la invitación en Firestore
-      // *** CAMBIO CLAVE AQUÍ: usar la instancia `db` ya declarada ***
+      // *** CAMBIO CLAVE AQUÍ: usar la instancia `db` ya declarada que apunta a 'munidb' ***
       const docRef = await db
         .collection("candidateInvitations")
         .add(newInvitationDoc);
