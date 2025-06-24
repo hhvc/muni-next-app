@@ -10,13 +10,11 @@ if (!admin.apps.length) {
   functions.logger.info("Firebase Admin inicializado para app por defecto");
 }
 
-// 🔥 Obtener instancia de Firestore para 'munidb'
+// 🔥 Obtener instancia de Firestore para 'munidb' usando el método correcto
 const getFirestoreForMunidb = () => {
   try {
     // Intentar obtener la app existente para 'munidb'
-    const munidbApp = admin.app("munidb");
-    functions.logger.info("Usando app existente para munidb");
-    return munidbApp.firestore();
+    return admin.app("munidb").firestore();
   } catch (e) {
     // Si no existe, crear nueva app
     functions.logger.info("Creando nueva app para munidb");
@@ -147,7 +145,7 @@ export const generateInvitation = functions.https.onCall(
 
       // Manejar error específico de Firestore
       if (error instanceof Error) {
-        if (error.message.includes("NOT_FOUND")) {
+        if (error.message.includes("NOT_FOUND") || (error as any).code === 5) {
           functions.logger.error(
             `DEBUG CF: Usuario no encontrado: ${callingUserId}`
           );
@@ -214,8 +212,8 @@ export const generateInvitation = functions.https.onCall(
 
     functions.logger.info("DEBUG CF: Validación exitosa");
 
-    // 3. Crear objeto de invitación
-    const newInvitationDoc = {
+    // 3. Crear objeto de invitación usando la interfaz InvitationData
+    const newInvitationDoc: Omit<InvitationData, "id"> = {
       dni,
       key,
       role,
@@ -229,7 +227,7 @@ export const generateInvitation = functions.https.onCall(
     );
 
     try {
-      // 🔥 Guardar en colección SIN prefijo munidb/
+      // Guardar en colección SIN prefijo munidb/
       const docRef = await db
         .collection("candidateInvitations")
         .add(newInvitationDoc);
@@ -252,12 +250,12 @@ export const generateInvitation = functions.https.onCall(
         `DEBUG CF: Invitación creada: ${JSON.stringify(invitationData)}`
       );
 
-      // Devolver respuesta
+      // Devolver respuesta usando la interfaz InvitationData
       return {
         id: docRef.id,
         ...invitationData,
         createdAt: invitationData.createdAt,
-      };
+      } as InvitationData;
     } catch (error: unknown) {
       functions.logger.error("Error al guardar invitación:", error);
 

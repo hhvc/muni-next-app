@@ -2,8 +2,6 @@
 
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
-
-// Importar tu función generateInvitation
 import { generateInvitation as generateInvitationFunction } from "./invitations";
 
 // Inicialización de Firebase Admin para la app por defecto
@@ -33,11 +31,16 @@ const getFirestoreForMunidb = () => {
     return munidbApp.firestore();
   } catch (e) {
     // Si no existe, crear nueva app
-    functions.logger.info("Creando nueva app para munidb");
+    // IMPORTANTE: Reemplaza con la URL real de tu base de datos
+    const databaseURL = "https://muni-22fa0-munidb.firebaseio.com";
+
+    functions.logger.info(
+      `Creando nueva app para munidb con URL: ${databaseURL}`
+    );
+
     const munidbApp = admin.initializeApp(
       {
-        // IMPORTANTE: Reemplaza esta URL con la URL real de tu base de datos
-        databaseURL: "https://muni-22fa0-munidb.firebaseio.com", // URL de ejemplo
+        databaseURL: databaseURL,
       },
       "munidb"
     );
@@ -101,14 +104,14 @@ export const addTestData = functions.https.onCall(
       functions.logger.info("UID del usuario (o anonymous):", uid);
       functions.logger.info("Usando base de datos: munidb");
 
-      // Usar la instancia específica de 'munidb'
+      // 🔥 CORRECCIÓN: Usar admin.firestore.FieldValue directamente
       const docRef = await db.collection("test").add({
         message: messageToStore,
-        created: admin.firestore.FieldValue.serverTimestamp(),
+        created: admin.firestore.FieldValue.serverTimestamp(), // Corregido
         uid: uid,
       });
 
-      console.log("Documento agregado con ID:", docRef.id);
+      functions.logger.info("Documento agregado con ID:", docRef.id);
 
       return {
         success: true,
@@ -117,7 +120,7 @@ export const addTestData = functions.https.onCall(
         database: "munidb",
       };
     } catch (error: unknown) {
-      console.error("Error en addTestData:", error);
+      functions.logger.error("Error en addTestData:", error);
 
       if (error instanceof functions.https.HttpsError) {
         throw error;
