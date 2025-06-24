@@ -4,18 +4,45 @@ import * as functions from "firebase-functions";
 import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
-// 0. Inicializa Firebase Admin SDK
-// Esto es importante para las pruebas en emuladores y para el despliegue.
-// Si ya tienes un archivo `index.ts` principal donde inicializas `admin.initializeApp()`,
-// asegúrate de no inicializarlo dos veces si este archivo se importa allí.
+// 0. Inicializa Firebase Admin SDK para la app por defecto
 if (!admin.apps.length) {
   admin.initializeApp();
+  functions.logger.info("Firebase Admin inicializado para app por defecto");
 }
 
-// 0.1. Definir la interfaz de la Invitación aquí para que la función la conozca.
+// 🔥 Obtener instancia de Firestore para 'munidb'
+const getFirestoreForMunidb = () => {
+  try {
+    // Intentar obtener la app existente para 'munidb'
+    const munidbApp = admin.app("munidb");
+    functions.logger.info("Usando app existente para munidb");
+    return munidbApp.firestore();
+  } catch (e) {
+    // Si no existe, crear nueva app
+    functions.logger.info("Creando nueva app para munidb");
+
+    // IMPORTANTE: Reemplaza con la URL real de tu base de datos
+    const databaseURL = "https://muni-22fa0-munidb.firebaseio.com";
+
+    const munidbApp = admin.initializeApp(
+      {
+        databaseURL: databaseURL,
+      },
+      "munidb"
+    );
+
+    functions.logger.info(`App para munidb creada con URL: ${databaseURL}`);
+    return munidbApp.firestore();
+  }
+};
+
+const db = getFirestoreForMunidb();
+functions.logger.info("Firestore para munidb inicializado");
+
+// 0.1. Definir la interfaz de la Invitación
 interface InvitationData {
   id?: string;
-  email?: string; // Es opcional, se llenará cuando la invitación sea usada
+  email?: string;
   dni: string;
   key: string;
   role: string;
@@ -26,35 +53,26 @@ interface InvitationData {
   usedBy?: string;
 }
 
-// 0.2. Definir la interfaz para los datos de entrada que esperamos del cliente.
+// 0.2. Definir la interfaz para los datos de entrada
 interface GenerateInvitationRequestData {
   dni: string;
   key: string;
   role: string;
-  createdBy?: string; // Opcional, si el cliente envía el UID del creador
+  createdBy?: string;
 }
 
 // Nombre de la Cloud Function: 'generateInvitation'
 export const generateInvitation = functions.https.onCall(
   async (request: CallableRequest<GenerateInvitationRequestData>) => {
-    // *** CAMBIO CLAVE AQUÍ: Sintaxis CORRECTA para conectarse a una base de datos con nombre en Admin SDK ***
-    // 'admin.app()' te da la instancia de la aplicación Firebase por defecto.
-    // '.firestore('munidb')' se llama sobre esa instancia para obtener la DB con nombre.
-    const db = admin.app().firestore();
-
     // --- DEBUGGING INICIAL ---
-    functions.logger.info(`DEBUG CF: Invocación de generateInvitation`);
+    functions.logger.info("DEBUG CF: Invocación de generateInvitation");
     functions.logger.info(
-      `DEBUG CF: Datos recibidos del frontend: ${JSON.stringify(request.data)}`
+      `DEBUG CF: Datos recibidos: ${JSON.stringify(request.data)}`
     );
     functions.logger.info(
-      `DEBUG CF: Función conectada a Project ID: ${
-        admin.app().options.projectId
-      }`
+      `DEBUG CF: Project ID: ${admin.app().options.projectId}`
     );
-    functions.logger.info(
-      `DEBUG CF: Intentando conectar a Firestore Database ID: munidb`
-    ); // Nuevo log para confirmación
+    functions.logger.info("DEBUG CF: Usando base de datos: munidb");
     // --- FIN DEBUGGING INICIAL ---
 
     // 1. Autenticación y Autorización
@@ -69,247 +87,192 @@ export const generateInvitation = functions.https.onCall(
     }
 
     const callingUserId = request.auth.uid;
-    functions.logger.info(
-      `DEBUG CF: UID del usuario autenticado: ${callingUserId}`
-    );
+    functions.logger.info(`DEBUG CF: UID autenticado: ${callingUserId}`);
+
+    // 🔥 Usar ruta normal SIN prefijo munidb/
     const userDocRefPath = `users/${callingUserId}`;
     functions.logger.info(
-      `DEBUG CF: Intentando obtener documento en ruta: ${userDocRefPath}`
+      `DEBUG CF: Ruta documento usuario: ${userDocRefPath}`
     );
 
-    // --- AÑADIR ESTOS CONSOLE.LOGS PARA DEPURACIÓN ADICIONAL DEL UID ---
-    functions.logger.info(
-      `DEBUG CF: UID que se usa para el doc: "${callingUserId}"`
-    );
-    functions.logger.info(
-      `DEBUG CF: Longitud del UID: ${callingUserId.length}`
-    );
-    functions.logger.info(
-      `DEBUG CF: Es exactamente 'FxTIyQbSx6UWsNNSKEuuBXl6FmG2'? ${
-        callingUserId === "FxTIyQbSx6UWsNNSKEuuBXl6FmG2"
-      }`
-    );
-    // --- FIN DEBUGGING ADICIONAL DEL UID ---
+    // --- DEPURACIÓN ADICIONAL DEL UID ---
+    functions.logger.info(`DEBUG CF: UID: "${callingUserId}"`);
+    functions.logger.info(`DEBUG CF: Longitud UID: ${callingUserId.length}`);
+    // --- FIN DEPURACIÓN ---
 
     try {
-      // <-- ESTE ES EL 'TRY' DEL BLOQUE DE AUTORIZACIÓN
-      const userDoc = await db.collection("munidb/users").doc(callingUserId).get();
+      // 🔥 Obtener documento usando instancia específica de munidb
+      const userDoc = await db.doc(userDocRefPath).get();
 
-      // Estas líneas NO SE EJECUTARÁN si el `get()` lanza el 5 NOT_FOUND.
       functions.logger.info(`DEBUG CF: userDoc.exists: ${userDoc.exists}`);
-      let userRole: string | undefined | null = null; // Inicializar a null
+      let userRole: string | undefined | null = null;
 
       if (userDoc.exists) {
         const userData = userDoc.data();
-        userRole = userData?.role; // Obtener el rol del documento
+        userRole = userData?.role;
         functions.logger.info(
-          `DEBUG CF: Datos de userDoc: ${JSON.stringify(userData)}`
+          `DEBUG CF: Datos usuario: ${JSON.stringify(userData)}`
         );
       } else {
         functions.logger.warn(
-          `DEBUG CF: Documento de usuario NO encontrado para UID: ${callingUserId} (después de .exists chequeo). Esto es inesperado si el documento existe en 'munidb'.`
+          `DEBUG CF: Usuario no encontrado: ${callingUserId}`
         );
       }
 
-      functions.logger.info(
-        `DEBUG CF: Rol obtenido de Firestore: "${userRole}"`
-      );
-      functions.logger.info(
-        `DEBUG CF: Tipo de rol obtenido: ${typeof userRole}`
-      );
+      functions.logger.info(`DEBUG CF: Rol obtenido: "${userRole}"`);
 
-      const authorizedRoles = ["root", "admin principal", "rrhh admin"]; // Roles autorizados para generar invitaciones
+      const authorizedRoles = ["root", "admin principal", "rrhh admin"];
       functions.logger.info(
         `DEBUG CF: Roles autorizados: ${authorizedRoles.join(", ")}`
       );
-      functions.logger.info(
-        `DEBUG CF: userRole incluido en authorizedRoles: ${authorizedRoles.includes(
-          userRole || ""
-        )}`
-      ); // Usar || "" para manejo de null/undefined
 
-      // *** IMPORTANTE: La condición de denegación de acceso ***
-      // Si el documento del usuario no existe, O el rol es nulo/indefinido, O el rol no está en los autorizados.
-      if (!userDoc.exists || !userRole || !authorizedRoles.includes(userRole)) {
-        functions.logger.warn(
-          `DEBUG CF: Acceso denegado. Condición: userDoc.exists=${
-            userDoc.exists
-          }, userRole="${userRole}", autorizado=${authorizedRoles.includes(
-            userRole || ""
-          )}`
-        );
+      // Verificar autorización
+      const isAuthorized = userRole && authorizedRoles.includes(userRole);
+      functions.logger.info(`DEBUG CF: Autorizado: ${isAuthorized}`);
+
+      if (!userDoc.exists || !isAuthorized) {
+        functions.logger.warn("DEBUG CF: Acceso denegado");
         throw new functions.https.HttpsError(
           "permission-denied",
           "No tienes permisos suficientes para generar invitaciones."
         );
       }
 
-      functions.logger.info(
-        `DEBUG CF: Permisos de usuario VERIFICADOS. Rol: ${userRole}`
-      );
+      functions.logger.info(`DEBUG CF: Permisos verificados. Rol: ${userRole}`);
     } catch (error: unknown) {
-      // <-- ESTE ES SU 'CATCH' CORRESPONDIENTE
-      console.error(
-        "DEBUG CF: Error en el bloque de verificación de roles:",
+      functions.logger.error(
+        "DEBUG CF: Error en verificación de roles:",
         error
       );
-      // El error 5 NOT_FOUND se captura aquí.
-      // Si el error es un NOT_FOUND de Firestore, lo manejamos como un error de permisos.
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error as any).code === 5 && // gRPC status code for NOT_FOUND
-        (error as any).details &&
-        (error as any).details.includes("NOT_FOUND") // Confirmar que es un NotFound de Firestore
-      ) {
-        functions.logger.error(
-          `DEBUG CF: Documento de usuario NO encontrado en la base de datos 'munidb' para UID ${callingUserId}.`
-        );
+
+      // Manejar error específico de Firestore
+      if (error instanceof Error) {
+        if (error.message.includes("NOT_FOUND")) {
+          functions.logger.error(
+            `DEBUG CF: Usuario no encontrado: ${callingUserId}`
+          );
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "No se pudo verificar su rol. Asegúrese de que su perfil exista en Firestore."
+          );
+        }
+
         throw new functions.https.HttpsError(
-          "permission-denied", // Convertir el NOT_FOUND en un error de permisos para el cliente
-          "No se pudo verificar su rol. Asegúrese de que su perfil de usuario exista en Firestore (base de datos 'munidb')."
+          "internal",
+          "Error al verificar permisos.",
+          error.message
         );
-      } else if (error instanceof functions.https.HttpsError) {
-        throw error; // Re-lanzar el error HttpsError original
       }
+
       throw new functions.https.HttpsError(
         "internal",
-        "Error al verificar permisos de usuario.",
-        error instanceof Error ? error.message : String(error)
+        "Error desconocido al verificar permisos."
       );
     }
 
     // 2. Validación de datos de entrada
-    const { dni, key, role, createdBy } = request.data; // Acceso a los datos
+    const { dni, key, role, createdBy } = request.data;
 
     functions.logger.info(
-      `DEBUG CF: Validando datos de entrada: DNI=${dni}, KEY=${key}, ROLE=${role}`
+      `DEBUG CF: Validando: DNI=${dni}, KEY=${key}, ROLE=${role}`
     );
 
     if (!dni || typeof dni !== "string") {
-      functions.logger.error("DEBUG CF: Validación Fallida: DNI no válido.");
+      functions.logger.error("Validación Fallida: DNI no válido.");
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "El DNI es requerido y debe ser una cadena de texto."
+        "El DNI es requerido y debe ser texto."
       );
     }
     if (!key || typeof key !== "string") {
-      functions.logger.error("DEBUG CF: Validación Fallida: Clave no válida.");
+      functions.logger.error("Validación Fallida: Clave no válida.");
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "La clave es requerida y debe ser una cadena de texto."
+        "La clave es requerida y debe ser texto."
       );
     }
     if (!role || typeof role !== "string") {
-      functions.logger.error("DEBUG CF: Validación Fallida: Rol no válido.");
+      functions.logger.error("Validación Fallida: Rol no válido.");
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "El rol es requerido y debe ser una cadena de texto."
+        "El rol es requerido y debe ser texto."
       );
     }
 
-    const allowedInviteRoles = ["colaborador", "datos", "rrhh"]; // Roles que se pueden asignar a una invitación
+    const allowedInviteRoles = ["colaborador", "datos", "rrhh"];
     functions.logger.info(
-      `DEBUG CF: Roles permitidos para invitación: ${allowedInviteRoles.join(
-        ", "
-      )}`
+      `DEBUG CF: Roles permitidos: ${allowedInviteRoles.join(", ")}`
     );
+
     if (!allowedInviteRoles.includes(role)) {
-      functions.logger.error(
-        `DEBUG CF: Validación Fallida: Rol de invitación no permitido: ${role}`
-      );
+      functions.logger.error(`Rol no permitido: ${role}`);
       throw new functions.https.HttpsError(
         "invalid-argument",
-        `El rol '${role}' no es un rol de invitación permitido.`
+        `El rol '${role}' no está permitido.`
       );
     }
-    functions.logger.info("DEBUG CF: Validación de datos de entrada Exitosa.");
 
-    // 3. Crear el objeto de invitación
-    const newInvitationDoc: Omit<
-      InvitationData,
-      "id" | "createdAt" | "email"
-    > & {
-      createdAt: admin.firestore.FieldValue;
-      email?: string; // Permitir email opcional en el objeto si la interfaz lo permite
-    } = {
+    functions.logger.info("DEBUG CF: Validación exitosa");
+
+    // 3. Crear objeto de invitación
+    const newInvitationDoc = {
       dni,
       key,
       role,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: createdBy || request.auth.uid, // `request.auth.uid` es el UID del usuario que llama
+      createdBy: createdBy || request.auth.uid,
       used: false,
     };
 
     functions.logger.info(
-      `DEBUG CF: Objeto de invitación a guardar: ${JSON.stringify(
-        newInvitationDoc
-      )}`
+      `DEBUG CF: Invitación a guardar: ${JSON.stringify(newInvitationDoc)}`
     );
 
     try {
-      // <-- ESTE ES EL 'TRY' DEL BLOQUE DE PERSISTENCIA EN FIRESTORE
-      // 4. Persistir la invitación en Firestore
-      // *** CAMBIO CLAVE AQUÍ: usar la instancia `db` ya declarada que apunta a 'munidb' ***
+      // 🔥 Guardar en colección SIN prefijo munidb/
       const docRef = await db
         .collection("candidateInvitations")
         .add(newInvitationDoc);
 
-      functions.logger.info(
-        `DEBUG CF: Invitación guardada en Firestore con ID: ${docRef.id}`
-      );
+      functions.logger.info(`DEBUG CF: Invitación guardada ID: ${docRef.id}`);
 
-      // 5. Devolver los datos de la invitación creada al cliente, incluyendo el ID
-      const createdDocSnapshot = await docRef.get();
-      const dataToReturn = createdDocSnapshot.data() as
-        | InvitationData
-        | undefined;
+      // Obtener documento recién creado
+      const createdDoc = await docRef.get();
+      const invitationData = createdDoc.data() as InvitationData | undefined;
 
-      if (!dataToReturn) {
-        functions.logger.error(
-          "DEBUG CF: Error interno: No se pudo recuperar la invitación recién creada después de guardarla."
-        );
+      if (!invitationData) {
+        functions.logger.error("Error: No se pudo recuperar invitación creada");
         throw new functions.https.HttpsError(
           "internal",
-          "No se pudo recuperar la invitación recién creada."
+          "Error al recuperar invitación creada"
         );
       }
 
       functions.logger.info(
-        `DEBUG CF: Invitación creada y devuelta: ${JSON.stringify({
-          id: docRef.id,
-          ...dataToReturn,
-        })}`
+        `DEBUG CF: Invitación creada: ${JSON.stringify(invitationData)}`
       );
 
+      // Devolver respuesta
       return {
         id: docRef.id,
-        email: dataToReturn.email || undefined,
-        role: dataToReturn.role,
-        dni: dataToReturn.dni,
-        key: dataToReturn.key,
-        createdAt: dataToReturn.createdAt,
-        createdBy: dataToReturn.createdBy,
-        used: dataToReturn.used,
-        usedAt: dataToReturn.usedAt,
-        usedBy: dataToReturn.usedBy,
-      } as InvitationData;
+        ...invitationData,
+        createdAt: invitationData.createdAt,
+      };
     } catch (error: unknown) {
-      // <-- Y ESTE ES SU 'CATCH' CORRESPONDIENTE
-      console.error("DEBUG CF: Error al añadir invitación a Firestore:", error); // Usamos console.error para que aparezca en los logs
+      functions.logger.error("Error al guardar invitación:", error);
+
       if (error instanceof Error) {
         throw new functions.https.HttpsError(
           "internal",
-          "No se pudo generar la invitación debido a un error interno.",
-          error.message
-        );
-      } else {
-        throw new functions.https.HttpsError(
-          "internal",
-          "No se pudo generar la invitación debido a un error desconocido."
+          "Error al generar invitación",
+          process.env.FUNCTIONS_EMULATOR ? error.message : undefined
         );
       }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        "Error desconocido al generar invitación"
+      );
     }
   }
 );

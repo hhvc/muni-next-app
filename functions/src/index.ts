@@ -6,24 +6,48 @@ import * as functions from "firebase-functions";
 // Importar tu función generateInvitation
 import { generateInvitation as generateInvitationFunction } from "./invitations";
 
-// Inicialización de Firebase Admin
+// Inicialización de Firebase Admin para la app por defecto
 try {
   if (admin.apps.length === 0) {
     admin.initializeApp();
     functions.logger.info(
-      "Firebase Admin inicializado correctamente usando credenciales del entorno."
+      "Firebase Admin inicializado correctamente para la app por defecto."
     );
   } else {
-    admin.app();
-    functions.logger.info("Firebase Admin ya inicializado.");
+    admin.app(); // Usa la instancia existente
   }
 } catch (error) {
-  functions.logger.error("Error inicializando Firebase Admin:", error);
+  functions.logger.error(
+    "Error inicializando Firebase Admin por defecto:",
+    error
+  );
   throw error;
 }
 
-// 🔥 Obtener instancia de Firestore para tu base de datos (sin especificar nombre)
-const db = admin.firestore();
+// 🔥 SOLUCIÓN CORRECTA: Crear una instancia de app específica para 'munidb'
+const getFirestoreForMunidb = () => {
+  try {
+    // Intentar obtener la app existente para 'munidb'
+    const munidbApp = admin.app("munidb");
+    functions.logger.info("Usando app existente para munidb");
+    return munidbApp.firestore();
+  } catch (e) {
+    // Si no existe, crear nueva app
+    functions.logger.info("Creando nueva app para munidb");
+    const munidbApp = admin.initializeApp(
+      {
+        // IMPORTANTE: Reemplaza esta URL con la URL real de tu base de datos
+        databaseURL: "https://muni-22fa0-munidb.firebaseio.com", // URL de ejemplo
+      },
+      "munidb"
+    );
+
+    return munidbApp.firestore();
+  }
+};
+
+const db = getFirestoreForMunidb();
+functions.logger.info(`Firestore inicializado para base de datos: munidb`);
 
 // Función HTTP 'hello'
 export const hello = functions.https.onRequest((req, res) => {
@@ -47,6 +71,7 @@ export const hello = functions.https.onRequest((req, res) => {
         ? "development"
         : "production",
       projectId: firebaseConfig.projectId || "unknown",
+      database: "munidb", // Confirmación
     });
   } catch (error: unknown) {
     functions.logger.error("Error en función hello:", error);
@@ -63,7 +88,6 @@ interface AddTestDataRequestData {
 export const addTestData = functions.https.onCall(
   async (request: functions.https.CallableRequest<AddTestDataRequestData>) => {
     try {
-      // ✅ Usa la instancia de Firestore
       const data = request.data;
       const auth = request.auth;
       const uid = auth?.uid || "anonymous";
@@ -75,9 +99,10 @@ export const addTestData = functions.https.onCall(
 
       functions.logger.info("Datos recibidos en addTestData:", data);
       functions.logger.info("UID del usuario (o anonymous):", uid);
+      functions.logger.info("Usando base de datos: munidb");
 
-      // 🔥 Especifica la base de datos en la referencia de colección
-      const docRef = await db.collection("munidb/test").add({
+      // Usar la instancia específica de 'munidb'
+      const docRef = await db.collection("test").add({
         message: messageToStore,
         created: admin.firestore.FieldValue.serverTimestamp(),
         uid: uid,
@@ -89,7 +114,7 @@ export const addTestData = functions.https.onCall(
         success: true,
         id: docRef.id,
         path: docRef.path,
-        database: "munidb", // Confirmación en respuesta
+        database: "munidb",
       };
     } catch (error: unknown) {
       console.error("Error en addTestData:", error);
