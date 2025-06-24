@@ -4,15 +4,9 @@ import * as functions from "firebase-functions";
 import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
-// NOTA IMPORTANTE: La inicialización de Firebase Admin SDK (admin.initializeApp())
-// se maneja centralmente en 'functions/src/index.ts'.
-// No es necesario ni recomendable inicializarla aquí de nuevo,
-// ya que 'index.ts' importará y ejecutará este módulo después de la inicialización global.
-
-// Inicializamos el cliente de Firestore.
-// Para acceder a tu base de datos nombrada 'munidb',
-// continuaremos usando el prefijo 'munidb/' en las rutas de las colecciones y documentos.
-const db = admin.firestore();
+// **** IMPORTANTE: ELIMINA ESTA LÍNEA DE AQUÍ (si la tenías) ****
+// const db = admin.firestore();
+// ***************************************************************
 
 // Interfaz para la estructura de los datos de una invitación
 interface InvitationData {
@@ -31,12 +25,17 @@ interface GenerateInvitationRequestData {
   dni: string;
   key: string;
   role: string;
-  createdBy?: string; // Este campo podría ser redundante si ya obtienes el UID del request.auth
+  createdBy?: string;
 }
 
 // Función Callable para generar una nueva invitación
 export const generateInvitation = functions.https.onCall(
   async (request: CallableRequest<GenerateInvitationRequestData>) => {
+    // **** MUEVE LA INICIALIZACIÓN DE 'db' DENTRO DE LA FUNCIÓN ****
+    // Esto asegura que admin.initializeApp() ya ha sido llamado.
+    const db = admin.firestore();
+    // *************************************************************
+
     // 1. Verificación de Autenticación
     if (!request.auth) {
       functions.logger.warn("Intento de generar invitación sin autenticación.");
@@ -54,7 +53,9 @@ export const generateInvitation = functions.https.onCall(
       const userDoc = await db.doc(`munidb/users/${callingUserId}`).get();
 
       if (!userDoc.exists) {
-        functions.logger.error(`Usuario no encontrado en Firestore: ${callingUserId}`);
+        functions.logger.error(
+          `Usuario no encontrado en Firestore: ${callingUserId}`
+        );
         throw new functions.https.HttpsError(
           "not-found",
           "Usuario no encontrado. Asegúrate de que tu perfil de usuario exista."
@@ -67,7 +68,9 @@ export const generateInvitation = functions.https.onCall(
       // Roles autorizados para generar invitaciones
       const authorizedRoles = ["root", "admin principal", "rrhh admin"];
       if (!userRole || !authorizedRoles.includes(userRole)) {
-        functions.logger.warn(`Usuario ${callingUserId} con rol "${userRole}" intentó generar invitación sin permisos.`);
+        functions.logger.warn(
+          `Usuario ${callingUserId} con rol "${userRole}" intentó generar invitación sin permisos.`
+        );
         throw new functions.https.HttpsError(
           "permission-denied",
           "Permisos insuficientes. Solo roles autorizados pueden generar invitaciones."
@@ -78,7 +81,9 @@ export const generateInvitation = functions.https.onCall(
       const { dni, key, role } = request.data;
 
       if (!dni || !key || !role) {
-        functions.logger.warn(`Datos incompletos para generar invitación por ${callingUserId}. DNI: ${dni}, Key: ${key}, Role: ${role}`);
+        functions.logger.warn(
+          `Datos incompletos para generar invitación por ${callingUserId}. DNI: ${dni}, Key: ${key}, Role: ${role}`
+        );
         throw new functions.https.HttpsError(
           "invalid-argument",
           "Datos incompletos. DNI, Clave y Rol son campos requeridos."
@@ -101,7 +106,9 @@ export const generateInvitation = functions.https.onCall(
         .collection("munidb/candidateInvitations") // Usamos el prefijo 'munidb/' aquí
         .add(newInvitation);
 
-      functions.logger.info(`Invitación generada exitosamente por ${callingUserId} con ID: ${docRef.id}`);
+      functions.logger.info(
+        `Invitación generada exitosamente por ${callingUserId} con ID: ${docRef.id}`
+      );
 
       // Devolver los datos de la invitación generada al cliente
       return {
