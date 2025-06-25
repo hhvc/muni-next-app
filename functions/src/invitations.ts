@@ -114,15 +114,23 @@ export const generateInvitation = functions.https.onCall(
       const docRef = await db
         .collection("candidateInvitations")
         .add(newInvitation);
+      const createdDocSnapshot = await docRef.get();
+      if (!createdDocSnapshot.exists) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Error al recuperar la invitación recién creada."
+        );
+      }
+      const actualInvitationData = createdDocSnapshot.data(); // Obtiene los datos, con createdAt como Timestamp
 
       functions.logger.info(
         `Invitación generada exitosamente por ${callingUserId} con ID: ${docRef.id}`
       );
 
-      // Devolver los datos de la invitación generada al cliente
+      // Devolver los datos reales de la invitación generada, con el Timestamp correcto
       return {
         id: docRef.id,
-        ...newInvitation, // Incluimos todos los datos de la invitación creada
+        ...actualInvitationData, // Incluimos todos los datos de la invitación creada
       };
     } catch (error) {
       // ¡CIERRA EL BLOQUE TRY Y ABRE EL BLOQUE CATCH!

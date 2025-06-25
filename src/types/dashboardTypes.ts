@@ -1,5 +1,6 @@
 // src/types/dashboardTypes.ts
 
+// Asegúrate de importar Timestamp desde 'firebase/firestore' para el tipado correcto
 import { Timestamp } from "firebase/firestore";
 
 // Interfaz para los datos de usuario en la colección 'users' (Firebase Auth)
@@ -33,22 +34,24 @@ export interface EmployeeDataRecord {
   id: string; // ID del documento (coincide con el userId de Auth)
   personalData: EmployeePersonalData; // ¡Este es el cambio clave!
   status: "draft" | "completed" | "unknown"; // Asumo que este campo existe y puede ser 'unknown'
-  createdAt: Date | null; // Convertido de Timestamp a Date para mostrar
+  createdAt: Date | null; // Convertido de Timestamp a Date para mostrar (en el frontend)
   documentUrls?: { [key: string]: string }; // Asumo que guardas URLs de documentos aquí
   // Si hay otros campos a nivel raíz en tu documento de Firestore (fuera de personalData),
   // como 'invitationId' o 'submittedAt', agrégalos aquí también.
   invitationId?: string;
-  submittedAt?: Date | null; // Si guardas la fecha de envío definitivo
+  submittedAt?: Date | null; // Si guardas la fecha de envío definitivo (en el frontend)
 }
 
 // Interfaz para los datos en la colección 'candidateInvitations'
+// Esta interfaz es ahora la fuente de verdad para la estructura de las invitaciones.
+// Es la misma estructura que tu Cloud Function devuelve.
 export interface Invitation {
   id: string; // ID del documento de invitación
-  email?: string; // CAMBIO CLAVE: Email ahora es opcional (se llena al usar la invitación)
-  dni: string; // CAMBIO CLAVE: DNI ahora es obligatorio
-  key: string; // CAMBIO CLAVE: Clave/Contraseña ahora es obligatoria
+  email?: string; // Email es opcional (se llena al usar la invitación)
+  dni: string; // DNI es obligatorio
+  key: string; // Clave/Contraseña es obligatoria
   role: string; // Rol que se asignará al completar el formulario
-  createdAt: Timestamp;
+  createdAt: Timestamp; // 🎯 ¡Esto es crucial! Debe ser un Firestore Timestamp.
   createdBy: string; // UID del admin que creó la invitación
   used: boolean; // Si la invitación ha sido usada
   usedAt?: Timestamp; // Fecha en que se usó

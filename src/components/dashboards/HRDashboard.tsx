@@ -19,9 +19,9 @@ import {
   query,
   orderBy,
   where,
-  Timestamp,
+  Timestamp, // Importar Timestamp desde firebase/firestore
 } from "firebase/firestore";
-import { FirebaseError } from "firebase/app";
+import { FirebaseError } from "firebase/app"; // Importar FirebaseError desde firebase/app
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 
@@ -32,14 +32,14 @@ import { useAuth } from "@/components/AuthProvider"; // Asegúrate de que esta r
 import {
   DashboardUser,
   EmployeeDataRecord,
-  Invitation,
+  Invitation, // Asegúrate de que 'Invitation' de dashboardTypes sea compatible con GeneratedInvitationResponse
 } from "@/types/dashboardTypes";
 
 // Importar los nuevos subcomponentes
 import UsersTable from "../UsersTable";
 import EmployeeDataTable from "../EmployeeDataTable";
 import InvitationsTable from "../InvitationsTable";
-import InvitationForm from "../InvitationForm";
+import InvitationForm from "../InvitationForm"; // El InvitationForm actualizado ya espera el tipo correcto
 
 import { EmployeeSearchField } from "../EmployeeDataTable";
 
@@ -122,27 +122,23 @@ const HRDashboard: React.FC = () => {
   }, []);
 
   // --- Funciones para cargar datos (fetchEmployeeData, fetchUsers, fetchInvitations) ---
-  // Estas funciones se mantienen sin cambios, pero el useEffect que las llama sí.
 
   const fetchEmployeeData = useCallback(async () => {
     if (!isDbInitialized || !db) return;
     setEmployeeDataLoading(true);
     setEmployeeDataError(null);
     try {
-      /* ... tu lógica de fetchEmployeeData ... */
       let q;
+      const employeeDataCollectionRef = collection(db, "employee-data"); // Usa la instancia 'db' correctamente
       if (employeeSearchTerm) {
         q = query(
-          collection(db, "employee-data"),
+          employeeDataCollectionRef,
           where(employeeSearchField, ">=", employeeSearchTerm),
           where(employeeSearchField, "<=", employeeSearchTerm + "\uf8ff"),
           orderBy(employeeSearchField)
         );
       } else {
-        q = query(
-          collection(db, "employee-data"),
-          orderBy("personalData.apellido")
-        );
+        q = query(employeeDataCollectionRef, orderBy("personalData.apellido"));
       }
       const querySnapshot = await getDocs(q);
       const data: EmployeeDataRecord[] = [];
@@ -165,6 +161,7 @@ const HRDashboard: React.FC = () => {
             estadoCivil: docData.personalData?.estadoCivil || "",
           },
           status: docData.status || "unknown",
+          // Firestore Timestamp objects have .toDate() method.
           createdAt: docData.createdAt?.toDate() || null,
           invitationId: docData.invitationId || undefined,
           submittedAt: docData.submittedAt?.toDate() || null,
@@ -190,7 +187,6 @@ const HRDashboard: React.FC = () => {
     setUsersLoading(true);
     setUsersError(null);
     try {
-      /* ... tu lógica de fetchUsers ... */
       const usersCollectionRef = collection(db, "users");
       const q = query(usersCollectionRef, orderBy("email"));
       const querySnapshot = await getDocs(q);
@@ -223,7 +219,7 @@ const HRDashboard: React.FC = () => {
     setInvitationsLoading(true);
     setInvitationsError(null);
     try {
-      /* ... tu lógica de fetchInvitations ... */
+      // Asumiendo que 'candidateInvitations' está en la DB por defecto
       const invitationsCollectionRef = collection(db, "candidateInvitations");
       const q = query(invitationsCollectionRef, orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
@@ -232,14 +228,21 @@ const HRDashboard: React.FC = () => {
         const docData = doc.data();
         data.push({
           id: doc.id,
+          // 🎯 OJO: Si tu Cloud Function 'generateInvitation' devuelve 'email'
+          // y lo almacena, asegúrate de que también esté en tu base de datos y en GeneratedInvitationResponse.
           email: docData.email || undefined,
           dni: docData.dni || "",
           key: docData.key || "",
           role: docData.role || "user",
-          createdAt: docData.createdAt || Timestamp.now(),
+          // createdAt debe ser de tipo Timestamp, aquí usamos .toMillis() o .toDate() si se requiere fecha
+          createdAt:
+            docData.createdAt instanceof Timestamp
+              ? docData.createdAt
+              : Timestamp.now(), // Asegurarse de que es un Timestamp
           createdBy: docData.createdBy || "unknown",
           used: docData.used || false,
-          usedAt: docData.usedAt || undefined,
+          usedAt:
+            docData.usedAt instanceof Timestamp ? docData.usedAt : undefined,
           usedBy: docData.usedBy || undefined,
         });
       });
@@ -330,9 +333,9 @@ const HRDashboard: React.FC = () => {
     []
   );
 
-  // Manejar la generación de invitación (ahora con DNI, Clave y Rol)
   const handleGenerateInvitation = useCallback(
-    async (dni: string, key: string, role: string) => {
+    // 🎯 CAMBIO CLAVE 1: El tipo de retorno de la función es Promise<Invitation>
+    async (dni: string, key: string, role: string): Promise<Invitation> => {
       // *** CAMBIO CLAVE: user.uid ahora proviene del contexto de AuthProvider ***
       if (!user || !user.uid) {
         // Verificar si user es null o si user.uid es null/undefined
@@ -340,11 +343,15 @@ const HRDashboard: React.FC = () => {
       }
 
       setGeneratingInvitation(true);
-      const functions = getFunctions();
-      const generateInvitationCallable = httpsCallable(
-        functions,
-        "generateInvitation"
-      );
+      // 🎯 CAMBIO CLAVE 2: Quitamos la anotación de tipo explícita. TypeScript lo infiere.
+      const functionsInstance = getFunctions();
+
+      // 🎯 CAMBIO CLAVE 3: Tipamos httpsCallable con 'Invitation' como tipo de respuesta
+      // El primer argumento genérico es para el payload de entrada, el segundo para la respuesta.
+      const generateInvitationCallable = httpsCallable<
+        { dni: string; key: string; role: string; createdBy: string }, // Tipo del payload de entrada
+        Invitation // <-- ¡Esperamos este tipo de respuesta de la Cloud Function!
+      >(functionsInstance, "generateInvitation");
 
       try {
         // Se pasan DNI, Clave y Rol
@@ -353,13 +360,20 @@ const HRDashboard: React.FC = () => {
           key,
           role,
           createdBy: user.uid,
-        }); // Usar user.uid
-        const newInvitationData = result.data as Invitation;
+        });
 
+        // 🎯 CAMBIO CLAVE 4: El 'result.data' ya viene tipado como 'Invitation'
+        // gracias al tipo genérico que le pasamos a httpsCallable.
+        const newInvitationData: Invitation = result.data;
+
+        // Actualizamos el estado de las invitaciones.
+        // newInvitationData.createdAt ya es un Timestamp gracias a la Cloud Function actualizada.
         setInvitations((prevInvitations) => [
           {
             ...newInvitationData,
-            createdAt: newInvitationData.createdAt || Timestamp.now(),
+            // La línea 'createdAt: newInvitationData.createdAt || Timestamp.now(),'
+            // es un buen fallback, pero si la Cloud Function garantiza el Timestamp,
+            // podría ser solo 'createdAt: newInvitationData.createdAt,'
           },
           ...prevInvitations,
         ]);
@@ -367,7 +381,10 @@ const HRDashboard: React.FC = () => {
         console.log(
           `Invitación para DNI: ${dni} generada y guardada exitosamente.`
         );
-        return `Invitación para DNI: ${dni} generada exitosamente!`;
+
+        // 🎯 CAMBIO CLAVE 5: Devolvemos el objeto completo 'newInvitationData'
+        // que coincide con el tipo de retorno de la promesa de handleGenerateInvitation.
+        return newInvitationData;
       } catch (err: unknown) {
         console.error("Error generando invitación:", err);
         let errorMessage = "Error al generar la invitación.";
@@ -376,12 +393,13 @@ const HRDashboard: React.FC = () => {
         } else if (err instanceof Error) {
           errorMessage += `: ${err.message}`;
         }
+        // Aseguramos que el error lanzado también sea del tipo esperado por el llamador
         throw new Error(errorMessage);
       } finally {
         setGeneratingInvitation(false);
       }
     },
-    [user] // <-- Dependencia de 'user'
+    [user, setInvitations, setGeneratingInvitation] // <-- Dependencias de 'user' y de los setters de estado
   );
 
   // Manejar descarga de datos de empleados
@@ -414,6 +432,7 @@ const HRDashboard: React.FC = () => {
           `"${pData.fechaNacimiento || "N/A"}"`,
           `"${pData.genero || "N/A"}"`,
           `"${pData.estadoCivil || "N/A"}"`,
+          // createdAt ya es un objeto Date aquí, así que .toLocaleDateString() funciona bien
           `"${employee.createdAt?.toLocaleDateString() || "N/A"}"`,
           `"${employee.status}"`,
         ];
@@ -439,7 +458,7 @@ const HRDashboard: React.FC = () => {
       console.error("Error generando CSV:", error);
       alert("Error al generar el archivo de descarga.");
     }
-  }, [employees]);
+  }, [employees]); // Depende de 'employees' para asegurar que el CSV se genera con los datos actuales
 
   // Manejador para el campo de búsqueda de empleados
   const handleEmployeeSearchChange = useCallback(
@@ -447,7 +466,7 @@ const HRDashboard: React.FC = () => {
       setEmployeeSearchTerm(term);
       setEmployeeSearchField(field);
     },
-    []
+    [] // No tiene dependencias externas, ya que solo actualiza estados
   );
 
   // --- Renderizado Condicional ---
@@ -581,6 +600,8 @@ const HRDashboard: React.FC = () => {
             error={invitationsError}
           />
           <InvitationForm
+            // Aquí la prop 'onGenerateInvitation' está tipada correctamente
+            // para esperar una función que devuelve Promise<Invitation>
             onGenerateInvitation={handleGenerateInvitation}
             generating={generatingInvitation}
             availableRoles={INVITE_ROLES}
@@ -589,6 +610,6 @@ const HRDashboard: React.FC = () => {
       </Tabs>
     </Container>
   );
-};
+}; // Cierra el componente HRDashboard
 
 export default HRDashboard;

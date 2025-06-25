@@ -2,14 +2,32 @@
 
 import React, { useState } from "react";
 import { Form, Button, Alert, Spinner, Card } from "react-bootstrap";
+// 🎯 Importamos 'Timestamp' desde el SDK de cliente de Firebase para tipar correctamente
+import { Timestamp } from "firebase/firestore";
+
+// 🎯 CAMBIO CLAVE 1:
+// Definimos la interfaz que coincide con el objeto que tu Cloud Function
+// 'generateInvitation' ahora devuelve. Es crucial que 'createdAt' sea de tipo Timestamp.
+interface GeneratedInvitationResponse {
+  id: string; // El ID del documento de invitación recién creado
+  dni: string;
+  key: string;
+  role: string;
+  createdAt: Timestamp; // Ahora sabemos que este será un objeto Timestamp de Firestore
+  createdBy: string;
+  used: boolean;
+  usedAt?: Timestamp; // Opcional, si lo manejas en el futuro
+  usedBy?: string; // Opcional, si lo manejas en el futuro
+}
 
 interface InvitationFormProps {
-  // CAMBIO CLAVE: onGenerateInvitation ahora espera dni, key y role, sin email
+  // 🎯 CAMBIO CLAVE 2:
+  // onGenerateInvitation ahora resuelve a una promesa de tipo GeneratedInvitationResponse
   onGenerateInvitation: (
     dni: string,
     key: string,
     role: string
-  ) => Promise<string>; // Promesa que resuelve a un string de mensaje de éxito
+  ) => Promise<GeneratedInvitationResponse>; // <--- ¡Tipo de retorno actualizado!
   generating: boolean; // Indica si la invitación se está generando (proceso en curso)
   availableRoles: string[]; // Array de roles disponibles para seleccionar en el formulario
 }
@@ -19,7 +37,8 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
   generating,
   availableRoles,
 }) => {
-  // const [email, setEmail] = useState(""); // <-- ELIMINAR ESTE ESTADO
+  // const [email, setEmail] = useState(""); // <-- Correcto, este estado ya no es necesario
+
   const [dni, setDni] = useState(""); // Estado para DNI (ahora obligatorio)
   const [key, setKey] = useState(""); // Estado para Clave/Contraseña (ahora obligatorio)
   const [role, setRole] = useState(availableRoles[0] || ""); // Por defecto, el primer rol disponible
@@ -32,7 +51,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
     e.preventDefault();
     setMessage(null); // Limpiar mensajes anteriores
 
-    // CAMBIO CLAVE: Validación para DNI, Clave y Rol
+    // Validación para DNI, Clave y Rol
     if (!dni || !key || !role) {
       setMessage({
         type: "danger",
@@ -42,14 +61,18 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
     }
 
     try {
-      // CAMBIO CLAVE: Llamar a la función prop, pasando DNI, Clave y Rol
-      const successMessage = await onGenerateInvitation(dni, key, role);
+      // 🎯 CAMBIO CLAVE 3:
+      // Ahora 'generatedInvitation' será el objeto completo devuelto por la Cloud Function
+      const generatedInvitation = await onGenerateInvitation(dni, key, role); // <--- Capturamos el objeto completo
+
       setMessage({
         type: "success",
-        text:
-          successMessage ||
-          `Invitación para DNI: ${dni} generada exitosamente!`,
+        // 🎯 CAMBIO CLAVE 4:
+        // Usamos los datos del objeto retornado para construir el mensaje de éxito.
+        // Esto es más robusto y específico.
+        text: `Invitación para DNI: ${generatedInvitation.dni} (ID: ${generatedInvitation.id}) generada exitosamente!`,
       });
+
       // Limpiar el formulario después del éxito
       setDni("");
       setKey("");
@@ -77,40 +100,28 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
         {message && <Alert variant={message.type}>{message.text}</Alert>}
 
         <Form onSubmit={handleSubmit}>
-          {/* CAMBIO CLAVE: Se elimina el campo de Email del Invitado */}
-          {/* <Form.Group className="mb-3" controlId="formEmail">
-            <Form.Label>Email del Invitado</Form.Label>
-            <Form.Control
-              type="email"
-              placeholder="ingresa@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={generating}
-            />
-          </Form.Group> */}
+          {/* El campo de Email del Invitado ya ha sido eliminado, lo cual es correcto */}
 
           <Form.Group className="mb-3" controlId="formDni">
-            <Form.Label>DNI</Form.Label> {/* Ahora es obligatorio */}
+            <Form.Label>DNI</Form.Label>
             <Form.Control
               type="text"
               placeholder="DNI del invitado"
               value={dni}
               onChange={(e) => setDni(e.target.value)}
-              required // CAMBIO CLAVE: Obligatorio
+              required
               disabled={generating}
             />
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formKey">
-            <Form.Label>Clave / Contraseña</Form.Label>{" "}
-            {/* Ahora es obligatorio */}
+            <Form.Label>Clave / Contraseña</Form.Label>
             <Form.Control
               type="password" // Usar tipo password para ocultar la entrada
               placeholder="Clave de la invitación"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              required // CAMBIO CLAVE: Obligatorio
+              required
               disabled={generating}
             />
           </Form.Group>
