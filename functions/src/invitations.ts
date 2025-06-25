@@ -12,7 +12,7 @@ import * as admin from "firebase-admin";
 // Interfaz para la estructura de los datos de una invitación
 interface InvitationData {
   dni: string;
-  key: string;
+  code: string;
   role: string;
   createdAt: admin.firestore.FieldValue | admin.firestore.Timestamp;
   createdBy: string;
@@ -24,7 +24,7 @@ interface InvitationData {
 // Interfaz para la estructura de los datos de la solicitud para generar una invitación
 interface GenerateInvitationRequestData {
   dni: string;
-  key: string;
+  code: string;
   role: string;
   createdBy?: string;
 }
@@ -86,11 +86,11 @@ export const generateInvitation = functions.https.onCall(
       }
 
       // 3. Validación de Datos de la Solicitud
-      const { dni, key, role } = request.data;
+      const { dni, code, role } = request.data;
 
-      if (!dni || !key || !role) {
+      if (!dni || !code || !role) {
         functions.logger.warn(
-          `Datos incompletos para generar invitación por ${callingUserId}. DNI: ${dni}, Key: ${key}, Role: ${role}`
+          `Datos incompletos para generar invitación por ${callingUserId}. DNI: ${dni}, code: ${code}, Role: ${role}`
         );
         throw new functions.https.HttpsError(
           "invalid-argument",
@@ -101,7 +101,7 @@ export const generateInvitation = functions.https.onCall(
       // 4. Creación de la Nueva Invitación
       const newInvitation: InvitationData = {
         dni,
-        key,
+        code,
         role,
         createdAt: admin.firestore.FieldValue.serverTimestamp(), // Marca de tiempo del servidor
         createdBy: callingUserId,

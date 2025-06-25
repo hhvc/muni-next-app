@@ -53,9 +53,10 @@ const ALL_APP_ROLES = [
   "colaborador",
   "admin principal",
   "rrhh admin",
+  "candidate"
 ];
 // Roles que se pueden asignar al invitar
-const INVITE_ROLES = ["rrhh", "colaborador"]; // Ajusta según sea necesario
+const INVITE_ROLES = ["rrhh", "datos", "candidate"]; // Ajusta según sea necesario
 
 // --- Componente Principal HRDashboard ---
 const HRDashboard: React.FC = () => {
@@ -232,7 +233,7 @@ const HRDashboard: React.FC = () => {
           // y lo almacena, asegúrate de que también esté en tu base de datos y en GeneratedInvitationResponse.
           email: docData.email || undefined,
           dni: docData.dni || "",
-          key: docData.key || "",
+          code: docData.code || "",
           role: docData.role || "user",
           // createdAt debe ser de tipo Timestamp, aquí usamos .toMillis() o .toDate() si se requiere fecha
           createdAt:
@@ -335,7 +336,7 @@ const HRDashboard: React.FC = () => {
 
   const handleGenerateInvitation = useCallback(
     // 🎯 CAMBIO CLAVE 1: El tipo de retorno de la función es Promise<Invitation>
-    async (dni: string, key: string, role: string): Promise<Invitation> => {
+    async (dni: string, code: string, role: string): Promise<Invitation> => {
       // *** CAMBIO CLAVE: user.uid ahora proviene del contexto de AuthProvider ***
       if (!user || !user.uid) {
         // Verificar si user es null o si user.uid es null/undefined
@@ -349,7 +350,7 @@ const HRDashboard: React.FC = () => {
       // 🎯 CAMBIO CLAVE 3: Tipamos httpsCallable con 'Invitation' como tipo de respuesta
       // El primer argumento genérico es para el payload de entrada, el segundo para la respuesta.
       const generateInvitationCallable = httpsCallable<
-        { dni: string; key: string; role: string; createdBy: string }, // Tipo del payload de entrada
+        { dni: string; code: string; role: string; createdBy: string }, // Tipo del payload de entrada
         Invitation // <-- ¡Esperamos este tipo de respuesta de la Cloud Function!
       >(functionsInstance, "generateInvitation");
 
@@ -357,7 +358,7 @@ const HRDashboard: React.FC = () => {
         // Se pasan DNI, Clave y Rol
         const result = await generateInvitationCallable({
           dni,
-          key,
+          code,
           role,
           createdBy: user.uid,
         });

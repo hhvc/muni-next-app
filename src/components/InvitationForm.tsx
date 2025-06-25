@@ -11,7 +11,7 @@ import { Timestamp } from "firebase/firestore";
 interface GeneratedInvitationResponse {
   id: string; // El ID del documento de invitación recién creado
   dni: string;
-  key: string;
+  code: string;
   role: string;
   createdAt: Timestamp; // Ahora sabemos que este será un objeto Timestamp de Firestore
   createdBy: string;
@@ -25,7 +25,7 @@ interface InvitationFormProps {
   // onGenerateInvitation ahora resuelve a una promesa de tipo GeneratedInvitationResponse
   onGenerateInvitation: (
     dni: string,
-    key: string,
+    code: string,
     role: string
   ) => Promise<GeneratedInvitationResponse>; // <--- ¡Tipo de retorno actualizado!
   generating: boolean; // Indica si la invitación se está generando (proceso en curso)
@@ -40,7 +40,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
   // const [email, setEmail] = useState(""); // <-- Correcto, este estado ya no es necesario
 
   const [dni, setDni] = useState(""); // Estado para DNI (ahora obligatorio)
-  const [key, setKey] = useState(""); // Estado para Clave/Contraseña (ahora obligatorio)
+  const [code, setcode] = useState(""); // Estado para Clave/Contraseña (ahora obligatorio)
   const [role, setRole] = useState(availableRoles[0] || ""); // Por defecto, el primer rol disponible
   const [message, setMessage] = useState<{
     type: "success" | "danger";
@@ -52,7 +52,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
     setMessage(null); // Limpiar mensajes anteriores
 
     // Validación para DNI, Clave y Rol
-    if (!dni || !key || !role) {
+    if (!dni || !code || !role) {
       setMessage({
         type: "danger",
         text: "DNI, Clave y Rol son campos requeridos.",
@@ -63,7 +63,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
     try {
       // 🎯 CAMBIO CLAVE 3:
       // Ahora 'generatedInvitation' será el objeto completo devuelto por la Cloud Function
-      const generatedInvitation = await onGenerateInvitation(dni, key, role); // <--- Capturamos el objeto completo
+      const generatedInvitation = await onGenerateInvitation(dni, code, role); // <--- Capturamos el objeto completo
 
       setMessage({
         type: "success",
@@ -75,7 +75,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
 
       // Limpiar el formulario después del éxito
       setDni("");
-      setKey("");
+      setcode("");
       setRole(availableRoles[0] || ""); // Restablecer al primer rol disponible
     } catch (error: unknown) {
       console.error("Error al generar invitación desde el formulario:", error);
@@ -114,13 +114,13 @@ const InvitationForm: React.FC<InvitationFormProps> = ({
             />
           </Form.Group>
 
-          <Form.Group className="mb-3" controlId="formKey">
+          <Form.Group className="mb-3" controlId="formcode">
             <Form.Label>Clave / Contraseña</Form.Label>
             <Form.Control
               type="password" // Usar tipo password para ocultar la entrada
               placeholder="Clave de la invitación"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
+              value={code}
+              onChange={(e) => setcode(e.target.value)}
               required
               disabled={generating}
             />

@@ -49,7 +49,7 @@ export interface Invitation {
   id: string; // ID del documento de invitación
   email?: string; // Email es opcional (se llena al usar la invitación)
   dni: string; // DNI es obligatorio
-  key: string; // Clave/Contraseña es obligatoria
+  code: string; // Clave/Contraseña es obligatoria
   role: string; // Rol que se asignará al completar el formulario
   createdAt: Timestamp; // 🎯 ¡Esto es crucial! Debe ser un Firestore Timestamp.
   createdBy: string; // UID del admin que creó la invitación
