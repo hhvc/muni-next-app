@@ -4,9 +4,10 @@ import * as functions from "firebase-functions";
 import { CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
-// **** IMPORTANTE: ELIMINA ESTA LÍNEA DE AQUÍ (si la tenías) ****
-// const db = admin.firestore();
-// ***************************************************************
+// NOTA IMPORTANTE: La inicialización de Firebase Admin SDK (admin.initializeApp())
+// para la App por defecto se maneja centralmente en 'functions/src/index.ts'.
+// Cada función que necesite acceder a una base de datos nombrada (como 'munidb')
+// debe crear su propia instancia de Firestore apuntando a esa base de datos.
 
 // Interfaz para la estructura de los datos de una invitación
 interface InvitationData {
@@ -31,10 +32,15 @@ interface GenerateInvitationRequestData {
 // Función Callable para generar una nueva invitación
 export const generateInvitation = functions.https.onCall(
   async (request: CallableRequest<GenerateInvitationRequestData>) => {
-    // **** MUEVE LA INICIALIZACIÓN DE 'db' DENTRO DE LA FUNCIÓN ****
-    // Esto asegura que admin.initializeApp() ya ha sido llamado.
-    const db = admin.firestore();
-    // *************************************************************
+    // **** LA SOLUCIÓN DEFINITIVA PARA ACCEDER A 'munidb' ****
+    // Creamos una nueva instancia de Firestore que apunta directamente a la base de datos 'munidb'.
+    const db = new admin.firestore.Firestore({
+      databaseId: "munidb", // ¡Aquí es donde va el databaseId!
+    });
+    functions.logger.info(
+      "Cliente de Firestore inicializado para 'munidb' en generateInvitation."
+    );
+    // **********************************************************
 
     // 1. Verificación de Autenticación
     if (!request.auth) {
@@ -48,9 +54,11 @@ export const generateInvitation = functions.https.onCall(
     const callingUserId = request.auth.uid; // ID del usuario que realiza la llamada
 
     try {
+      // ¡ABRE EL BLOQUE TRY!
       // 2. Verificación de Roles del Usuario
-      // Acceder al documento del usuario en la base de datos 'munidb'
-      const userDoc = await db.doc(`munidb/users/${callingUserId}`).get();
+      // Acceder al documento del usuario.
+      // Ya NO necesitas el prefijo "munidb/" en la ruta, porque 'db' ya apunta a "munidb".
+      const userDoc = await db.doc(`users/${callingUserId}`).get();
 
       if (!userDoc.exists) {
         functions.logger.error(
@@ -101,9 +109,10 @@ export const generateInvitation = functions.https.onCall(
       };
 
       // 5. Guardar la Invitación en Firestore
-      // Almacenar el nuevo documento en la colección 'munidb/candidateInvitations'
+      // Almacenar el nuevo documento en la colección 'candidateInvitations'.
+      // Ya NO necesitas el prefijo "munidb/" aquí.
       const docRef = await db
-        .collection("munidb/candidateInvitations") // Usamos el prefijo 'munidb/' aquí
+        .collection("candidateInvitations")
         .add(newInvitation);
 
       functions.logger.info(
@@ -116,6 +125,7 @@ export const generateInvitation = functions.https.onCall(
         ...newInvitation, // Incluimos todos los datos de la invitación creada
       };
     } catch (error) {
+      // ¡CIERRA EL BLOQUE TRY Y ABRE EL BLOQUE CATCH!
       // Manejo de errores: Registrar y lanzar HttpsError
       functions.logger.error("Error en generateInvitation:", error);
 
@@ -129,5 +139,5 @@ export const generateInvitation = functions.https.onCall(
         "Error al generar invitación. Por favor, inténtalo de nuevo más tarde."
       );
     }
-  }
-);
+  } // ¡CIERRA LA FUNCIÓN ASYNC!
+); // ¡CIERRA functions.https.onCall!
