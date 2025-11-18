@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Container, Row, Col, Button, Card } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import Image from "next/image";
 import { auth } from "@/firebase/clientApp";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
@@ -62,32 +62,32 @@ const GoogleSignInPage: React.FC = () => {
   };
 
   return (
-    <Container className="mt-5">
-      <Row className="justify-content-md-center">
-        <Col xs lg="6">
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title className="mb-4">Sitio Privado</Card.Title>
-              <Card.Text>
-                Está ingresando a un sitio privado. Para avanzar debe loguearse
-                con Google.
-              </Card.Text>
-              <Button variant="danger" onClick={handleGoogleSignIn}>
-                <Image
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google logo"
-                  width={18}
-                  height={18}
-                  style={{ marginRight: "8px", verticalAlign: "middle" }}
-                  unoptimized={true}
-                />
-                Ingresar con Google
-              </Button>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div
+      className="min-vh-100 d-flex flex-column align-items-center justify-content-center"
+      style={{ backgroundColor: "#001F3F" }} // Azul marino
+    >
+      <div className="text-center text-white mb-4">
+        <h1 className="display-4 fw-bold">Sitio Privado</h1>
+        <p className="lead">Debe loguearse para ingresar</p>
+      </div>
+
+      <Button
+        variant="light"
+        size="lg"
+        onClick={handleGoogleSignIn}
+        className="d-flex align-items-center px-4 py-2"
+      >
+        <Image
+          src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+          alt="Google logo"
+          width={24}
+          height={24}
+          className="me-2"
+          unoptimized={true}
+        />
+        Iniciar sesión con Google
+      </Button>
+    </div>
   );
 };
 

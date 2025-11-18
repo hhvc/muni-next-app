@@ -9,7 +9,6 @@ import useFirebase from "@/hooks/useFirebase"; // Lo usaremos para leer document
 import GoogleSignInPage from "./GoogleSignInPage";
 import Login from "./Login";
 import EmployeeForm from "./EmployeeForm";
-import AdminDashboard from "./AdminDashboard";
 
 // Importa componentes simples para carga y error
 import LoadingSpinner from "./LoadingSpinner";
@@ -20,13 +19,10 @@ import { doc, getDoc } from "firebase/firestore";
 
 // Importa hooks y componentes de React/Next.js
 import { useEffect, useState } from "react";
-import { Container, Row, Col, Card } from "react-bootstrap"; // Eliminamos Button ya que no se usa
+import { Container } from "react-bootstrap"; // Solo Container, eliminamos Row, Col, Card que no se usan
 
-// Importar los nuevos dashboards específicos por rol
-import RootDashboard from "@/components/dashboards/RootDashboard";
-import HRDashboard from "@/components/dashboards/HRDashboard";
-import CollaboratorDashboard from "@/components/dashboards/CollaboratorDashboard";
-import DataDashboard from "@/components/dashboards/DataDashboard";
+// Importar el nuevo dashboard central
+import CentralDashboard from "./dashboards/CentralDashboard";
 
 // Definimos interfaces para los datos esperados de Firestore
 interface UserData {
@@ -42,9 +38,9 @@ export default function HomePageContent() {
   // Consume el estado del usuario autenticado y de carga/error del AuthProvider
   const {
     user,
-    loadingUserStatus, // Cambiamos de 'loading' a 'loadingUserStatus'
-    hasError: authProviderHasError, // Cambiamos de 'error' a 'hasError'
-    errorDetails: authProviderErrorDetails, // Obtenemos los detalles del error
+    loadingUserStatus,
+    hasError: authProviderHasError,
+    errorDetails: authProviderErrorDetails,
   } = useAuth();
 
   // Obtenemos la instancia de Firestore y su estado de inicialización desde useFirebase
@@ -153,82 +149,23 @@ export default function HomePageContent() {
     setRetryCount(0);
   };
 
-  const renderDashboard = () => {
-    if (!userData?.role) {
-      return <AdminDashboard />;
-    }
-
-    const role = userData.role.toLowerCase();
-
-    switch (role) {
+  // Función para obtener la ruta del dashboard específico según el rol
+  const getSpecificDashboardRoute = (role: string): string => {
+    const roleLower = role.toLowerCase();
+    switch (roleLower) {
       case "root":
-        return <RootDashboard />;
+        return "/dashboard/root";
       case "rrhh":
       case "rrhh admin":
-        return <HRDashboard />;
+        return "/dashboard/hr";
       case "colaborador":
-        return <CollaboratorDashboard />;
+        return "/dashboard/collaborator";
       case "datos":
-        return <DataDashboard />;
+        return "/dashboard/data";
       case "admin principal":
-        return <AdminDashboard />;
+        return "/dashboard/admin";
       default:
-        return (
-          <Container className="mt-5">
-            <Row className="justify-content-md-center">
-              <Col md={8}>
-                <Card className="shadow">
-                  <Card.Header className="bg-info text-white text-center py-3">
-                    <Card.Title>Estado de Cuenta</Card.Title>
-                  </Card.Header>
-                  <Card.Body>
-                    <div className="alert alert-info text-center">
-                      <h3>Información de tu cuenta</h3>
-
-                      <p>
-                        Rol: <strong>{userData.role}</strong>
-                      </p>
-
-                      {userData.role === "candidate" && (
-                        <>
-                          {!userData.invitationDocId ? (
-                            <p className="text-danger">
-                              Tu cuenta no tiene una invitación asociada.
-                            </p>
-                          ) : !invitationData ? (
-                            <p className="text-danger">
-                              No se encontró la invitación asociada a tu cuenta.
-                            </p>
-                          ) : invitationData.used === true ? (
-                            <p className="text-danger">
-                              La invitación ya ha sido utilizada.
-                            </p>
-                          ) : (
-                            <p className="text-danger">
-                              Estado desconocido de la invitación.
-                            </p>
-                          )}
-                        </>
-                      )}
-
-                      {userData.role !== "candidate" && (
-                        <p>
-                          Tu rol actual no requiere completar el formulario de
-                          registro.
-                        </p>
-                      )}
-
-                      <p className="mt-3">
-                        Si necesitas ayuda, contacta al equipo de
-                        administración.
-                      </p>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          </Container>
-        );
+        return "/dashboard";
     }
   };
 
@@ -282,7 +219,15 @@ export default function HomePageContent() {
       );
     }
 
-    return renderDashboard();
+    // Redirigir al dashboard central para todos los usuarios autenticados
+    // que no son candidatos con formulario pendiente
+    return (
+      <CentralDashboard
+        user={user}
+        userRole={userData.role}
+        specificDashboardRoute={getSpecificDashboardRoute(userData.role)}
+      />
+    );
   }
 
   // 5. Usuario sin documento en 'users'
