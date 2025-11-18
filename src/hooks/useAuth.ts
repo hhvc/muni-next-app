@@ -1,7 +1,12 @@
 // src/hooks/useAuth.ts
 import { useEffect, useState } from "react";
 // Importa solo las funciones específicas que necesitas del SDK de Cliente
-import { getAuth, onAuthStateChanged, User } from "firebase/auth"; // Importa 'User' para tipado
+import {
+  getAuth,
+  onAuthStateChanged,
+  User,
+  signOut as firebaseSignOut, // ✅ Añadido para logout
+} from "firebase/auth"; // Importa 'User' para tipado
 import { getFirestore, doc, getDoc } from "firebase/firestore"; // Importa funciones de Firestore
 
 // Opcional: Importa la instancia de la app Firebase si la necesitas para getAuth/getFirestore
@@ -13,6 +18,7 @@ interface AuthState {
   loading: boolean; // Indica si el estado de autenticación/rol está cargando inicialmente
   error: Error | null; // Cualquier error que ocurra durante la carga del estado
   reloadUserData: () => Promise<void>; // Función para forzar la recarga del documento de usuario y el rol
+  signOut: () => Promise<void>; // ✅ Nueva función añadida
 }
 
 // Definimos una interfaz para la estructura esperada del documento de usuario en Firestore
@@ -134,6 +140,18 @@ export const useAuth = (): AuthState => {
     setReloadTrigger((prev) => prev + 1);
   };
 
+  // ✅ Función para cerrar sesión - NUEVA FUNCIONALIDAD
+  const signOut = async (): Promise<void> => {
+    const authInstance = getAuth();
+    try {
+      await firebaseSignOut(authInstance);
+      console.log("useAuth: Sesión cerrada exitosamente");
+    } catch (error) {
+      console.error("useAuth: Error signing out:", error);
+      throw error;
+    }
+  };
+
   // Exportar el estado y las funciones/datos que necesiten los componentes que usen este hook
   return {
     user, // Objeto User de Auth (uid, email, displayName, etc.)
@@ -141,5 +159,6 @@ export const useAuth = (): AuthState => {
     loading, // Estado de carga
     error, // Cualquier error
     reloadUserData, // Exponemos la función para recargar datos
+    signOut, // ✅ Exponemos la nueva función para cerrar sesión
   };
 };

@@ -8,7 +8,11 @@ import {
   ReactNode,
   useCallback,
 } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import {
+  User,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+} from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/firebase/clientApp";
 
@@ -19,6 +23,7 @@ interface AuthContextType {
   hasError: boolean;
   errorDetails: string;
   reloadUserData: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,9 +49,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReloadTrigger((prev) => prev + 1);
   }, []);
 
+  // ✅ Función para cerrar sesión - CORREGIDA
+  const signOut = useCallback(async (): Promise<void> => {
+    if (!auth) {
+      console.error("No se puede cerrar sesión: auth no está disponible");
+      throw new Error("Auth no está disponible");
+    }
+
+    try {
+      await firebaseSignOut(auth);
+      console.log("Sesión cerrada exitosamente");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      throw error;
+    }
+  }, []);
+
   // Listener de autenticación y datos de usuario
   useEffect(() => {
     if (typeof window === "undefined" || !auth || !db) {
+      setLoadingUserStatus(false);
+      setHasError(true);
+      setErrorDetails("Firebase no está inicializado correctamente");
       return;
     }
 
@@ -123,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasError,
     errorDetails,
     reloadUserData,
+    signOut,
   };
 
   return (
