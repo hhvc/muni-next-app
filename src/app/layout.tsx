@@ -1,18 +1,17 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Ejemplo de fuente, puedes quitar si no la usas
-// Asegúrate de que la ruta a tu archivo CSS global sea correcta
+import { Inter } from "next/font/google";
 import "./globals.css";
-// Importa Bootstrap CSS aquí. Asegúrate de haberlo instalado con npm.
 import "bootstrap/dist/css/bootstrap.min.css";
 
-import { AuthProvider } from "@/components/AuthProvider"; // Importa tu AuthProvider
+import { AuthProvider } from "@/components/AuthProvider";
+import { AuthRouter } from "@/components/AuthRouter";
 
-const inter = Inter({ subsets: ["latin"] }); // Ejemplo de fuente
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Muni App", // Cambia esto al título de tu app
-  description: "App privada para servicios Muni", // Cambia la descripción
+  title: "Muni App",
+  description: "App privada para servicios Muni",
 };
 
 export default function RootLayout({
@@ -23,12 +22,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {" "}
-        {/* O remueve className si no usas la fuente */}
-        {/* Envuelve el contenido de la aplicación con el AuthProvider */}
-        {/* AuthProvider es un Client Component, pero puede envolver Server Components */}
         <AuthProvider>
-          {children} {/* children será tu página actual (ej: app/page.tsx) */}
+          <AuthRouter>{children}</AuthRouter>
         </AuthProvider>
       </body>
     </html>

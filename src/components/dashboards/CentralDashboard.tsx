@@ -182,7 +182,7 @@ export default function CentralDashboard({
         <div className="row mb-4">
           <div className="col">
             <h1 className="display-4 fw-bold text-center text-white mb-2">
-              Intranet de Datos y Comportamiento
+              Ciencia de Datos y Comportamiento
             </h1>
             <p className="text-center text-light lead">
               Plataforma centralizada para la gestión de datos y comportamiento

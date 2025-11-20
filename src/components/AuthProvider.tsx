@@ -7,6 +7,7 @@ import {
   useContext,
   ReactNode,
   useCallback,
+  useRef,
 } from "react";
 import {
   User,
@@ -15,6 +16,10 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/firebase/clientApp";
+import {
+  createPlatformUser,
+  updateUserLastLogin,
+} from "@/services/userService";
 
 interface AuthContextType {
   user: User | null;
@@ -43,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // ⭐ NUEVO: Referencia para controlar el bucle
+  const isUpdatingLoginRef = useRef(false);
+  const lastLoginUpdateRef = useRef<number>(0);
 
   // Función para recargar datos de usuario
   const reloadUserData = useCallback(async () => {
@@ -81,6 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHasError(false);
       setErrorDetails("");
 
+      // ⭐ NUEVO: Resetear flags cuando cambia el usuario
+      isUpdatingLoginRef.current = false;
+      lastLoginUpdateRef.current = 0;
+
       if (!firebaseUser) {
         setLoadingUserStatus(false);
         return;
@@ -92,18 +105,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Usamos onSnapshot para escuchar cambios en tiempo real
         const docUnsubscribe = onSnapshot(
           userDocRef,
-          (userDocSnap) => {
+          async (userDocSnap) => {
             try {
               if (userDocSnap.exists()) {
                 const userData = userDocSnap.data();
                 const role = userData?.role || null;
                 setUserRole(role);
+
+                // ⭐ CORREGIDO: Prevenir bucle infinito
+                const now = Date.now();
+                const timeSinceLastUpdate = now - lastLoginUpdateRef.current;
+
+                // Solo actualizar último login si:
+                // 1. No estamos ya en medio de una actualización
+                // 2. Ha pasado al menos 30 segundos desde la última actualización
+                // 3. O es la primera vez que detectamos el usuario
+                if (
+                  !isUpdatingLoginRef.current &&
+                  (timeSinceLastUpdate > 30000 ||
+                    lastLoginUpdateRef.current === 0)
+                ) {
+                  isUpdatingLoginRef.current = true;
+                  lastLoginUpdateRef.current = now;
+
+                  console.log(
+                    "🔄 Actualizando último login para usuario existente:",
+                    firebaseUser.uid
+                  );
+                  await updateUserLastLogin(firebaseUser.uid);
+
+                  // Permitir nuevas actualizaciones después de un breve delay
+                  setTimeout(() => {
+                    isUpdatingLoginRef.current = false;
+                  }, 1000);
+                }
               } else {
-                setUserRole(null);
+                // ⭐ NUEVO: Si no existe el documento, crear usuario de plataforma
+                console.log(
+                  "🔹 Usuario sin documento en Firestore, creando..."
+                );
+                await createPlatformUser(firebaseUser);
+                setUserRole("nuevo");
               }
               setHasError(false);
             } catch (snapshotError) {
-              console.error("Error procesando snapshot:", snapshotError);
+              console.error("❌ Error procesando snapshot:", snapshotError);
               setHasError(true);
               setErrorDetails(
                 snapshotError instanceof Error
@@ -115,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           },
           (error) => {
-            console.error("Error en listener de Firestore:", error);
+            console.error("❌ Error en listener de Firestore:", error);
             setHasError(true);
             setErrorDetails(
               `Firestore error: ${error.code} - ${error.message}`
@@ -126,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return () => docUnsubscribe();
       } catch (error) {
-        console.error("Error general en AuthProvider:", error);
+        console.error("❌ Error general en AuthProvider:", error);
         setHasError(true);
         setErrorDetails(
           error instanceof Error

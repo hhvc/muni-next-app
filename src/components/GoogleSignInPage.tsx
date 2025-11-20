@@ -6,6 +6,7 @@ import Image from "next/image";
 import { auth } from "@/firebase/clientApp";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
+import { createPlatformUser } from "@/services/userService";
 
 const GoogleSignInPage: React.FC = () => {
   const handleGoogleSignIn = async () => {
@@ -17,12 +18,19 @@ const GoogleSignInPage: React.FC = () => {
 
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      console.log(
-        "Usuario autenticado con Google (pop-up cerrado exitosamente)"
-      );
+      console.log("🔹 Iniciando autenticación con Google...");
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      console.log("✅ Usuario autenticado:", user.uid, user.email);
+
+      // ⭐ CREAR USUARIO CON ROL "nuevo" AUTOMÁTICAMENTE
+      console.log("🔹 Creando documento de usuario en Firestore...");
+      await createPlatformUser(user);
+
+      console.log("✅ Usuario autenticado con Google y creado con rol 'nuevo'");
     } catch (error: unknown) {
-      console.error("Error durante la autenticación con Google:", error);
+      console.error("❌ Error durante la autenticación con Google:", error);
 
       if (error instanceof FirebaseError) {
         switch (error.code) {
@@ -64,7 +72,7 @@ const GoogleSignInPage: React.FC = () => {
   return (
     <div
       className="min-vh-100 d-flex flex-column align-items-center justify-content-center"
-      style={{ backgroundColor: "#001F3F" }} // Azul marino
+      style={{ backgroundColor: "#001F3F" }}
     >
       <div className="text-center text-white mb-4">
         <h1 className="display-4 fw-bold">Sitio Privado</h1>
