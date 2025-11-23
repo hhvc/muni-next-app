@@ -7,64 +7,71 @@ import { auth } from "@/firebase/clientApp";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { createPlatformUser } from "@/services/userService";
+import { logger } from "@/utils/logger";
 
 const GoogleSignInPage: React.FC = () => {
   const handleGoogleSignIn = async () => {
-    // Verificar que auth esté disponible
     if (!auth) {
-      console.error("Firebase Auth no está disponible");
+      logger.error("Firebase Auth no está disponible");
       return;
     }
 
     const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+
     try {
-      console.log("🔹 Iniciando autenticación con Google...");
+      logger.info("Iniciando autenticación con Google...");
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      console.log("✅ Usuario autenticado:", user.uid, user.email);
+      logger.success("Usuario autenticado:", user.uid, user.email);
 
-      // ⭐ CREAR USUARIO CON ROL "nuevo" AUTOMÁTICAMENTE
-      console.log("🔹 Creando documento de usuario en Firestore...");
-      await createPlatformUser(user);
+      // Crear o actualizar usuario
+      logger.info("Verificando usuario en Firestore...");
+      const { isNewUser } = await createPlatformUser(user);
 
-      console.log("✅ Usuario autenticado con Google y creado con rol 'nuevo'");
+      if (isNewUser) {
+        logger.success("NUEVO usuario creado con rol 'pending_verification'");
+      } else {
+        logger.success("Usuario existente - último login actualizado");
+      }
     } catch (error: unknown) {
-      console.error("❌ Error durante la autenticación con Google:", error);
+      logger.error("Error durante la autenticación con Google:", error);
 
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case "auth/popup-closed-by-user":
-            console.warn("Autenticación cancelada por el usuario.");
+            logger.warn("Autenticación cancelada por el usuario.");
             break;
           case "auth/cancelled-popup-request":
-            console.warn("Ya hay una ventana de pop-up abierta.");
+            logger.warn("Ya hay una ventana de pop-up abierta.");
             break;
           case "auth/popup-blocked":
-            console.warn(
+            logger.warn(
               "Pop-up de inicio de sesión bloqueado por el navegador."
             );
             break;
           case "auth/operation-not-allowed":
-            console.error(
+            logger.error(
               "Error de configuración: El método de inicio de sesión (Google) no está habilitado en Firebase Console."
             );
             break;
           case "auth/account-exists-with-different-credential":
-            console.warn(
+            logger.warn(
               "Ya existe una cuenta con ese email usando otra forma de inicio de sesión."
             );
             break;
           default:
-            console.error(
-              `Error desconocido de Firebase Auth: ${error.code} - ${error.message}`
+            logger.error(
+              `Error de Firebase Auth: ${error.code} - ${error.message}`
             );
             break;
         }
       } else if (error instanceof Error) {
-        console.error("Error general:", error.message);
+        logger.error("Error general:", error.message);
       } else {
-        console.error("Error desconocido:", error);
+        logger.error("Error desconocido:", error);
       }
     }
   };
