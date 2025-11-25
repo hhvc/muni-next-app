@@ -149,26 +149,6 @@ export default function HomePageContent() {
     setRetryCount(0);
   };
 
-  // Función para obtener la ruta del dashboard específico según el rol
-  const getSpecificDashboardRoute = (role: string): string => {
-    const roleLower = role.toLowerCase();
-    switch (roleLower) {
-      case "root":
-        return "/dashboard/root";
-      case "rrhh":
-      case "rrhh admin":
-        return "/dashboard/hr";
-      case "colaborador":
-        return "/dashboard/collaborator";
-      case "datos":
-        return "/dashboard/data";
-      case "admin principal":
-        return "/dashboard/admin";
-      default:
-        return "/dashboard";
-    }
-  };
-
   // --- Lógica de Renderizado Condicional Principal ---
   // 1. Estado de Carga
   if (loadingUserStatus || (user && isLoadingFirestore)) {
@@ -221,13 +201,7 @@ export default function HomePageContent() {
 
     // Redirigir al dashboard central para todos los usuarios autenticados
     // que no son candidatos con formulario pendiente
-    return (
-      <CentralDashboard
-        user={user}
-        userRole={userData.role}
-        specificDashboardRoute={getSpecificDashboardRoute(userData.role)}
-      />
-    );
+    return <CentralDashboard />;
   }
 
   // 5. Usuario sin documento en 'users'

@@ -97,14 +97,8 @@ export function AuthRouter({ children }: { children: React.ReactNode }) {
     }
 
     // Usuario con otro rol en página standalone - mostrar dashboard central
-    // Aseguramos que userRole sea string pasando userRole || ''
-    return (
-      <CentralDashboard
-        user={user}
-        userRole={userRole || ""}
-        specificDashboardRoute={getDashboardRoute(userRole)}
-      />
-    );
+    // ✅ CORREGIDO: CentralDashboard ahora usa el contexto internamente, no necesita props
+    return <CentralDashboard />;
   }
 
   // Para páginas protegidas (no standalone), verificar autenticación

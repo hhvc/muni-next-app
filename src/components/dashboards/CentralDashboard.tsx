@@ -1,181 +1,36 @@
 // src/components/dashboards/CentralDashboard.tsx
 "use client";
 
-import { User } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { useAuth } from "@/components/AuthProvider";
-import { useState, useRef, useEffect } from "react";
 
-interface CentralDashboardProps {
-  user: User;
-  userRole: string;
-  specificDashboardRoute: string;
-}
-
-export default function CentralDashboard({
-  user,
-  userRole,
-  specificDashboardRoute,
-}: CentralDashboardProps) {
+export default function CentralDashboard() {
   const router = useRouter();
-  const { signOut } = useAuth();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { userRole } = useAuth();
 
-  // Cerrar dropdown al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push("/");
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
+  // Determinar la ruta del dashboard específico según el rol
+  const getDashboardRoute = (role: string | null) => {
+    switch (role) {
+      case "admin":
+        return "/dashboard/admin";
+      case "hr":
+        return "/dashboard/hr";
+      case "collaborator":
+        return "/dashboard/collaborator";
+      case "data":
+        return "/dashboard/data";
+      default:
+        return "/dashboard/root";
     }
   };
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
+  const specificDashboardRoute = getDashboardRoute(userRole);
 
   return (
     <div
-      className="min-vh-100 py-4 position-relative"
+      className="min-vh-100 py-4"
       style={{ backgroundColor: "#001F3F", color: "white" }}
     >
-      {/* Dropdown de perfil en esquina superior derecha */}
-      <div className="position-absolute top-0 end-0 m-3" ref={dropdownRef}>
-        {/* Botón de imagen del usuario */}
-        <button
-          className="btn p-0 border-0 bg-transparent"
-          onClick={toggleDropdown}
-          style={{ cursor: "pointer" }}
-        >
-          {user.photoURL ? (
-            <Image
-              src={user.photoURL}
-              alt="Foto de perfil"
-              width={50}
-              height={50}
-              className="rounded-circle border border-3 border-white shadow"
-              style={{ objectFit: "cover" }}
-            />
-          ) : (
-            <div
-              className="bg-secondary rounded-circle d-flex align-items-center justify-content-center shadow"
-              style={{
-                width: "50px",
-                height: "50px",
-                border: "3px solid white",
-              }}
-            >
-              <span className="text-white fw-bold fs-5">
-                {user.displayName
-                  ? user.displayName.charAt(0).toUpperCase()
-                  : "U"}
-              </span>
-            </div>
-          )}
-        </button>
-
-        {/* Dropdown menu */}
-        {isDropdownOpen && (
-          <div
-            className="position-absolute end-0 mt-2 card shadow-lg bg-light"
-            style={{
-              width: "280px",
-              zIndex: 1000,
-              animation: "fadeIn 0.2s ease-in-out",
-            }}
-          >
-            <div className="card-body p-3">
-              {/* Información del usuario */}
-              <div className="text-center mb-3">
-                {user.photoURL ? (
-                  <Image
-                    src={user.photoURL}
-                    alt="Foto de perfil"
-                    width={60}
-                    height={60}
-                    className="rounded-circle border mb-2"
-                    style={{ objectFit: "cover" }}
-                  />
-                ) : (
-                  <div
-                    className="bg-secondary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2"
-                    style={{ width: "60px", height: "60px" }}
-                  >
-                    <span className="text-white fw-bold fs-4">
-                      {user.displayName
-                        ? user.displayName.charAt(0).toUpperCase()
-                        : "U"}
-                    </span>
-                  </div>
-                )}
-
-                <h6 className="card-title text-dark mb-1">
-                  {user.displayName || "Usuario"}
-                </h6>
-                <p className="text-muted small mb-1">{user.email}</p>
-                <span className="badge bg-info text-dark">
-                  {userRole || "Sin rol asignado"}
-                </span>
-              </div>
-
-              <hr className="my-2" />
-
-              {/* Botones de acción */}
-              <div className="d-grid gap-2">
-                <button
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={() => {
-                    router.push("/perfil");
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  <span className="me-2">✏️</span>
-                  Editar Perfil
-                </button>
-
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => {
-                    router.push(specificDashboardRoute);
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  <span className="me-2">🚀</span>
-                  Mi Dashboard Específico
-                </button>
-
-                <button
-                  className="btn btn-outline-danger btn-sm mt-1"
-                  onClick={handleLogout}
-                >
-                  <span className="me-2">🚪</span>
-                  Cerrar Sesión
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Contenido principal */}
       <div className="container">
         {/* Header */}
@@ -207,7 +62,7 @@ export default function CentralDashboard({
 
               {/* Tarjetas de aplicativos */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-primary text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -222,7 +77,10 @@ export default function CentralDashboard({
                       Sistema de reportes y análisis de métricas
                       organizacionales
                     </p>
-                    <button className="btn btn-outline-primary btn-sm">
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => router.push(specificDashboardRoute)}
+                    >
                       Acceder
                     </button>
                   </div>
@@ -230,7 +88,7 @@ export default function CentralDashboard({
               </div>
 
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -252,7 +110,7 @@ export default function CentralDashboard({
               </div>
 
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-warning text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -275,7 +133,7 @@ export default function CentralDashboard({
 
               {/* Tarjetas adicionales */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light">
+                <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-info text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -295,7 +153,7 @@ export default function CentralDashboard({
               </div>
 
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light">
+                <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-secondary text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -317,7 +175,7 @@ export default function CentralDashboard({
               </div>
 
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light">
+                <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
                     <div
                       className="bg-dark text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -342,17 +200,15 @@ export default function CentralDashboard({
         </div>
       </div>
 
-      {/* Estilos CSS para la animación */}
+      {/* Estilos CSS para hover effects */}
       <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        .hover-shadow:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+          transition: all 0.3s ease;
+        }
+        .transition-all {
+          transition: all 0.3s ease;
         }
       `}</style>
     </div>
