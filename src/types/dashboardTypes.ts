@@ -7,7 +7,9 @@ import { Timestamp } from "firebase/firestore";
 export interface DashboardUser {
   id: string; // UID del usuario de Firebase Auth
   email: string;
-  role?: string; // El rol del usuario (ej: "user", "RRHH-Admin", "admin") - asegúrate de que este campo exista en tu colección 'users'
+  role?: string; // Rol principal (para compatibilidad)
+  roles?: string[]; // Array de roles (nuevo)
+  primaryRole?: string; // Rol principal para UI
   // Puedes añadir otros campos que guardes en el documento del usuario si son relevantes para el dashboard
 }
 
@@ -50,10 +52,45 @@ export interface Invitation {
   email?: string; // Email es opcional (se llena al usar la invitación)
   dni: string; // DNI es obligatorio
   code: string; // Clave/Contraseña es obligatoria
-  role: string; // Rol que se asignará al completar el formulario
+  role: string; // Rol que se asignará al completar el formulario (mantenemos string para compatibilidad con invitaciones)
+  roles?: string[]; // Array de roles (opcional para futura expansión)
   createdAt: Timestamp; // 🎯 ¡Esto es crucial! Debe ser un Firestore Timestamp.
   createdBy: string; // UID del admin que creó la invitación
   used: boolean; // Si la invitación ha sido usada
   usedAt?: Timestamp; // Fecha en que se usó
   usedBy?: string; // UID del usuario que usó la invitación
 }
+
+// Nuevos tipos para el sistema de roles múltiples
+export interface RolePermissions {
+  canViewDashboard: boolean;
+  canManageUsers: boolean;
+  canManageEmployees: boolean;
+  canViewReports: boolean;
+  canManageInvitations: boolean;
+  // Agrega más permisos según necesites
+}
+
+export const ROLE_HIERARCHY = {
+  root: 100,
+  admin: 90,
+  hr: 80,
+  data: 70,
+  collaborator: 60,
+  pending_verification: 10,
+  nuevo: 5,
+} as const;
+
+export type UserRole = keyof typeof ROLE_HIERARCHY;
+
+// Helper types para verificación de roles
+export type HasRole<T extends string> = {
+  roles: string[];
+  hasRole: (role: T) => boolean;
+  hasAnyRole: (roles: T[]) => boolean;
+};
+
+export type WithRoles = {
+  roles: string[];
+  primaryRole?: string;
+};

@@ -1,314 +1,355 @@
-// src/components/admin/AdminDashboard.tsx
-import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Table,
-  Form,
-  Button,
-  InputGroup,
-  Spinner,
-  Alert,
-} from "react-bootstrap";
-import { db } from "@/firebase/clientApp";
-import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
-import { FirebaseError } from "firebase/app";
+// src/components/dashboards/AdminDashboard.tsx
+"use client";
 
-interface Candidato {
-  id: string;
-  nombre: string;
-  apellido: string;
-  dni: string;
-  mail: string;
-  telefono: string;
-  createdAt: Date | null;
-}
+import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import FormsManager from "@/components/forms/FormsManager";
+import FormCreator from "@/components/forms/FormCreator";
+import UsersTable from "./UsersTable";
+import InvitationsTable from "./InvitationsTable";
 
-const AdminDashboard: React.FC = () => {
-  const [candidatos, setCandidatos] = useState<Candidato[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchField, setSearchField] = useState<keyof Candidato>("dni");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isDbInitialized, setIsDbInitialized] = useState(false);
+type AdminTab = "forms" | "create-form" | "users" | "invitations" | "settings";
 
-  // Verificar inicialización de Firebase
-  useEffect(() => {
-    if (db) {
-      setIsDbInitialized(true);
-    } else {
-      const intervalId = setInterval(() => {
-        if (db) {
-          setIsDbInitialized(true);
-          clearInterval(intervalId);
-        }
-      }, 500);
+export default function AdminDashboard() {
+  const { userRoles } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("forms");
 
-      const timeoutId = setTimeout(() => {
-        clearInterval(intervalId);
-        if (!db) {
-          setError("Firebase no se inicializó en el tiempo esperado");
-        }
-      }, 10000);
+  // Verificar si el usuario es admin
+  const isAdmin = userRoles?.includes("admin") || userRoles?.includes("root");
 
-      return () => {
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-      };
-    }
-  }, []);
-
-  // Cargar candidatos desde Firestore
-  useEffect(() => {
-    const fetchCandidatos = async () => {
-      if (!isDbInitialized || !db) return;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        // Construir consulta base
-        let q;
-        if (searchTerm) {
-          // Búsqueda parcial: usamos >= y <= para simular 'contiene'
-          q = query(
-            collection(db, "candidatos"),
-            where(searchField, ">=", searchTerm),
-            where(searchField, "<=", searchTerm + "\uf8ff"),
-            orderBy(searchField)
-          );
-        } else {
-          q = query(collection(db, "candidatos"), orderBy("apellido"));
-        }
-
-        const querySnapshot = await getDocs(q);
-        const candidatosData: Candidato[] = [];
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          candidatosData.push({
-            id: doc.id,
-            nombre: data.nombre || "",
-            apellido: data.apellido || "",
-            dni: data.dni || "",
-            mail: data.mail || "",
-            telefono: data.telefono || "",
-            createdAt: data.createdAt?.toDate() || null,
-          });
-        });
-
-        setCandidatos(candidatosData);
-      } catch (err) {
-        console.error("Error cargando candidatos:", err);
-
-        let errorMessage = "Error al cargar los candidatos";
-        if (err instanceof FirebaseError) {
-          errorMessage += `: ${err.message}`;
-        } else if (err instanceof Error) {
-          errorMessage += `: ${err.message}`;
-        }
-
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCandidatos();
-  }, [isDbInitialized, searchTerm, searchField]);
-
-  // Descargar datos como CSV
-  const handleDownload = () => {
-    try {
-      // Encabezados
-      const headers = [
-        "#",
-        "Nombre",
-        "Apellido",
-        "DNI",
-        "Email",
-        "Teléfono",
-        "Fecha de Registro",
-      ];
-
-      // Datos
-      const rows = candidatos.map((candidato, index) => [
-        (index + 1).toString(),
-        `"${candidato.nombre}"`,
-        `"${candidato.apellido}"`,
-        `"${candidato.dni}"`,
-        `"${candidato.mail}"`,
-        `"${candidato.telefono}"`,
-        `"${candidato.createdAt?.toLocaleDateString() || "N/A"}"`,
-      ]);
-
-      // Crear contenido CSV
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.join(",")),
-      ].join("\n");
-
-      // Crear blob y descargar
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-
-      link.setAttribute("href", url);
-      link.setAttribute("download", "candidatos.csv");
-      link.style.visibility = "hidden";
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error generando CSV:", error);
-      setError("Error al generar el archivo de descarga");
-    }
-  };
-
-  // Ver detalles del candidato
-  const handleViewDetails = (candidatoId: string) => {
-    console.log("Ver detalles del candidato:", candidatoId);
-    // Aquí implementarías la navegación a la página de detalles
-  };
-
-  // Manejar errores de inicialización
-  if (error) {
+  if (!isAdmin) {
     return (
-      <Container className="mt-5">
-        <Alert variant="danger">
-          <strong>Error:</strong> {error}
-          <div className="mt-3">
-            <Button variant="primary" onClick={() => window.location.reload()}>
-              Recargar página
-            </Button>
-          </div>
-        </Alert>
-      </Container>
+      <div className="container mt-5">
+        <div className="alert alert-danger" role="alert">
+          <h4 className="alert-heading">Acceso Denegado</h4>
+          <p>No tienes permisos para acceder al panel de administración.</p>
+        </div>
+      </div>
     );
   }
 
-  // Si Firebase no está inicializado
-  if (!isDbInitialized) {
-    return (
-      <Container className="mt-5 text-center">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-2">Inicializando base de datos...</p>
-      </Container>
-    );
-  }
+  // Opciones del menú de navegación
+  const menuItems = [
+    { id: "forms" as AdminTab, label: "📋 Formularios", icon: "bi-list-ul" },
+    {
+      id: "create-form" as AdminTab,
+      label: "➕ Nuevo Formulario",
+      icon: "bi-plus-circle",
+    },
+    { id: "users" as AdminTab, label: "👥 Usuarios", icon: "bi-people" },
+    {
+      id: "invitations" as AdminTab,
+      label: "✉️ Invitaciones",
+      icon: "bi-envelope",
+    },
+    { id: "settings" as AdminTab, label: "⚙️ Configuración", icon: "bi-gear" },
+  ];
 
   return (
-    <Container className="mt-5">
-      <Row className="mb-3">
-        <Col>
-          <h2>Listado de Candidatos</h2>
-        </Col>
-      </Row>
-
-      {/* Sección de Búsqueda */}
-      <Row className="mb-3">
-        <Col xs lg="8">
-          <InputGroup>
-            <Form.Control
-              type="text"
-              placeholder={`Buscar por ${
-                searchField === "dni" ? "DNI" : searchField
-              }...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Form.Select
-              aria-label="Campo de búsqueda"
-              value={searchField}
-              onChange={(e) =>
-                setSearchField(e.target.value as keyof Candidato)
-              }
-            >
-              <option value="dni">DNI</option>
-              <option value="nombre">Nombre</option>
-              <option value="apellido">Apellido</option>
-              <option value="mail">Email</option>
-            </Form.Select>
-            <Button variant="primary" disabled={loading}>
-              Buscar
-            </Button>
-          </InputGroup>
-        </Col>
-        <Col className="d-flex justify-content-end">
-          <Button
-            variant="success"
-            onClick={handleDownload}
-            disabled={candidatos.length === 0 || loading}
+    <div className="container-fluid mt-4">
+      <div className="row">
+        {/* Sidebar de navegación */}
+        <div className="col-md-3 col-lg-2 mb-4">
+          <div
+            className="card border-0 shadow-sm sticky-top"
+            style={{ top: "20px" }}
           >
-            <i className="bi bi-download me-2"></i>
-            Descargar CSV
-          </Button>
-        </Col>
-      </Row>
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-shield-check me-2"></i>
+                Panel Admin
+              </h5>
+            </div>
+            <div className="card-body p-0">
+              <nav className="nav flex-column">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`nav-link text-start py-3 px-3 border-bottom ${
+                      activeTab === item.id
+                        ? "bg-light text-primary fw-bold"
+                        : "text-dark"
+                    }`}
+                    onClick={() => setActiveTab(item.id)}
+                    style={{
+                      borderRadius: 0,
+                      borderLeft:
+                        activeTab === item.id ? "4px solid #0d6efd" : "none",
+                    }}
+                  >
+                    <i className={`bi ${item.icon} me-2`}></i>
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="card-footer bg-light">
+              <small className="text-muted">
+                <i className="bi bi-info-circle me-1"></i>
+                Panel de administración
+              </small>
+            </div>
+          </div>
+        </div>
 
-      {/* Estado de carga */}
-      {loading && (
-        <Row className="mb-3">
-          <Col className="text-center">
-            <Spinner animation="border" variant="primary" />
-            <p>Cargando candidatos...</p>
-          </Col>
-        </Row>
-      )}
+        {/* Contenido principal */}
+        <div className="col-md-9 col-lg-10">
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h1 className="h3 mb-0">
+                    {activeTab === "forms" && "Gestión de Formularios"}
+                    {activeTab === "create-form" && "Crear Nuevo Formulario"}
+                    {activeTab === "users" && "Gestión de Usuarios"}
+                    {activeTab === "invitations" && "Gestión de Invitaciones"}
+                    {activeTab === "settings" && "Configuración"}
+                  </h1>
+                  <p className="text-muted mb-0">
+                    {activeTab === "forms" &&
+                      "Administra y visualiza todos los formularios"}
+                    {activeTab === "create-form" &&
+                      "Registra un nuevo formulario en el sistema"}
+                    {activeTab === "users" && "Gestiona usuarios y permisos"}
+                    {activeTab === "invitations" &&
+                      "Crea y gestiona invitaciones"}
+                    {activeTab === "settings" &&
+                      "Configura parámetros del sistema"}
+                  </p>
+                </div>
+                <div className="text-end">
+                  <span className="badge bg-primary">
+                    {userRoles?.includes("root")
+                      ? "Root Admin"
+                      : "Administrador"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Tabla de Candidatos */}
-      <Row>
-        <Col>
-          <Table striped bordered hover responsive className="mt-3">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nombre</th>
-                <th>Apellido</th>
-                <th>DNI</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Fecha de Registro</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {candidatos.map((candidato, index) => (
-                <tr key={candidato.id}>
-                  <td>{index + 1}</td>
-                  <td>{candidato.nombre}</td>
-                  <td>{candidato.apellido}</td>
-                  <td>{candidato.dni}</td>
-                  <td>{candidato.mail}</td>
-                  <td>{candidato.telefono}</td>
-                  <td>{candidato.createdAt?.toLocaleDateString() || "N/A"}</td>
-                  <td>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => handleViewDetails(candidato.id)}
-                    >
-                      <i className="bi bi-eye me-1"></i>
-                      Ver
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {candidatos.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={8} className="text-center">
-                    No se encontraron candidatos
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </Col>
-      </Row>
-    </Container>
+          {/* Contenido según pestaña activa */}
+          <div className="row">
+            <div className="col-12">
+              <div className="card border-0 shadow-sm">
+                <div className="card-body">
+                  {activeTab === "forms" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Aquí puedes gestionar todos los formularios registrados
+                        en el sistema. Puedes ver, editar y eliminar
+                        formularios.
+                      </div>
+                      <FormsManager />
+                    </div>
+                  )}
+
+                  {activeTab === "create-form" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Completa los datos para registrar un nuevo formulario de
+                        Google en el sistema.
+                      </div>
+                      <div className="row">
+                        <div className="col-12 col-lg-8">
+                          <FormCreator
+                            onSuccess={() => {
+                              // Opcional: Mostrar mensaje de éxito o redirigir
+                              console.log("Formulario creado exitosamente");
+                            }}
+                          />
+                        </div>
+                        <div className="col-12 col-lg-4">
+                          <div className="card border-primary">
+                            <div className="card-header bg-primary text-white">
+                              <h6 className="mb-0">
+                                <i className="bi bi-lightbulb me-2"></i>
+                                Consejos
+                              </h6>
+                            </div>
+                            <div className="card-body">
+                              <ul className="list-unstyled mb-0">
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Asegúrate de que el formulario de Google
+                                    tenga permisos públicos
+                                  </small>
+                                </li>
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Usa categorías para organizar mejor los
+                                    formularios
+                                  </small>
+                                </li>
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Asigna roles específicos si el formulario es
+                                    restringido
+                                  </small>
+                                </li>
+                                <li>
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    El orden determina la posición en la lista
+                                  </small>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "users" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Gestiona los usuarios del sistema. Puedes ver roles,
+                        editar permisos y más.
+                      </div>
+                      <UsersTable />
+                    </div>
+                  )}
+
+                  {activeTab === "invitations" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Crea y gestiona invitaciones para nuevos usuarios del
+                        sistema.
+                      </div>
+                      <InvitationsTable />
+                    </div>
+                  )}
+
+                  {activeTab === "settings" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Configura los parámetros del sistema. Esta sección está
+                        en desarrollo.
+                      </div>
+                      <div className="text-center py-5">
+                        <div className="mb-3">
+                          <i
+                            className="bi bi-gear text-primary"
+                            style={{ fontSize: "4rem" }}
+                          ></i>
+                        </div>
+                        <h4>Configuración del Sistema</h4>
+                        <p className="text-muted">
+                          Esta funcionalidad está en desarrollo. Pronto podrás
+                          configurar:
+                        </p>
+                        <ul className="list-unstyled text-start d-inline-block">
+                          <li className="mb-2">
+                            <i className="bi bi-check-circle text-muted me-2"></i>
+                            Parámetros generales
+                          </li>
+                          <li className="mb-2">
+                            <i className="bi bi-check-circle text-muted me-2"></i>
+                            Configuración de notificaciones
+                          </li>
+                          <li className="mb-2">
+                            <i className="bi bi-check-circle text-muted me-2"></i>
+                            Integraciones externas
+                          </li>
+                          <li>
+                            <i className="bi bi-check-circle text-muted me-2"></i>
+                            Backup y restauración
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Estadísticas rápidas */}
+          <div className="row mt-4">
+            <div className="col-md-3">
+              <div className="card border-0 shadow-sm bg-primary text-white">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between">
+                    <div>
+                      <h6 className="card-title">Formularios</h6>
+                      <h3 className="mb-0">12</h3>
+                    </div>
+                    <div>
+                      <i
+                        className="bi bi-file-earmark-text"
+                        style={{ fontSize: "2rem" }}
+                      ></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-0 shadow-sm bg-success text-white">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between">
+                    <div>
+                      <h6 className="card-title">Usuarios Activos</h6>
+                      <h3 className="mb-0">45</h3>
+                    </div>
+                    <div>
+                      <i
+                        className="bi bi-people"
+                        style={{ fontSize: "2rem" }}
+                      ></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-0 shadow-sm bg-warning text-dark">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between">
+                    <div>
+                      <h6 className="card-title">Invitaciones</h6>
+                      <h3 className="mb-0">8</h3>
+                    </div>
+                    <div>
+                      <i
+                        className="bi bi-envelope"
+                        style={{ fontSize: "2rem" }}
+                      ></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card border-0 shadow-sm bg-info text-white">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between">
+                    <div>
+                      <h6 className="card-title">Esta Semana</h6>
+                      <h3 className="mb-0">3</h3>
+                    </div>
+                    <div>
+                      <i
+                        className="bi bi-calendar-week"
+                        style={{ fontSize: "2rem" }}
+                      ></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-};
-
-export default AdminDashboard;
+}

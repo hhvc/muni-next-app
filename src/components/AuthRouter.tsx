@@ -7,31 +7,31 @@ import { useEffect } from "react";
 import GoogleSignInPage from "@/components/GoogleSignInPage";
 import CentralDashboard from "@/components/dashboards/CentralDashboard";
 import CandidateDashboard from "@/app/candidate/page";
+import Unauthorized from "@/components/Unauthorized";
 import LoadingSpinner from "@/components/LoadingSpinner";
-
-// Función para obtener la ruta del dashboard según el rol
-const getDashboardRoute = (userRole: string | null): string => {
-  const routes: { [key: string]: string } = {
-    admin: "/dashboard/admin",
-    hr: "/dashboard/hr",
-    collaborator: "/dashboard/collaborator",
-    data: "/dashboard/data",
-    root: "/dashboard/root",
-    candidate: "/candidate",
-  };
-
-  return routes[userRole || ""] || "/";
-};
 
 // Páginas que se muestran sin el layout principal (standalone)
 const STANDALONE_PAGES = ["/", "/candidate"];
 
+// Definir roles autorizados y no autorizados
+const authorizedRoles = ["root", "admin", "hr", "data", "collaborator"];
+const unauthorizedRoles = ["nuevo", "", "Sin rol", "pending_verification"];
+
 export function AuthRouter({ children }: { children: React.ReactNode }) {
-  const { user, userRole, loadingUserStatus } = useAuth();
+  const { user, userRole, userRoles, loadingUserStatus } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
-  // Efecto para manejar redirecciones automáticas
+  // Verificar si el usuario tiene al menos un rol autorizado
+  const hasAuthorizedRole = userRoles?.some((role) =>
+    authorizedRoles.includes(role)
+  );
+
+  // Verificar si el usuario solo tiene roles no autorizados
+  const hasOnlyUnauthorizedRoles =
+    userRoles?.every((role) => unauthorizedRoles.includes(role)) || false;
+
+  // Efecto para manejar redirecciones básicas
   useEffect(() => {
     // No hacer nada mientras carga
     if (loadingUserStatus) return;
@@ -51,25 +51,28 @@ export function AuthRouter({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Si hay usuario con otro rol y está en /candidate, redirigir a su dashboard
+    // Si hay usuario con roles no autorizados y está en una ruta protegida, redirigir a /
     if (
       user &&
-      userRole &&
-      userRole !== "candidate" &&
-      pathname === "/candidate"
+      hasOnlyUnauthorizedRoles &&
+      !STANDALONE_PAGES.includes(pathname)
     ) {
-      const dashboardRoute = getDashboardRoute(userRole);
-      router.push(dashboardRoute);
+      router.push("/");
       return;
     }
 
-    // Si hay usuario con rol y está en la raíz, redirigir a su dashboard
-    if (user && userRole && userRole !== "candidate" && pathname === "/") {
-      const dashboardRoute = getDashboardRoute(userRole);
-      router.push(dashboardRoute);
-      return;
-    }
-  }, [user, userRole, loadingUserStatus, pathname, router]);
+    // ELIMINADO: Redirecciones automáticas a dashboards específicos por rol
+    // Los usuarios autorizados permanecen en la ruta que eligieron
+  }, [
+    user,
+    userRole,
+    userRoles,
+    loadingUserStatus,
+    pathname,
+    router,
+    hasAuthorizedRole,
+    hasOnlyUnauthorizedRoles,
+  ]);
 
   // Mostrar loading mientras se verifica autenticación
   if (loadingUserStatus) {
@@ -96,9 +99,18 @@ export function AuthRouter({ children }: { children: React.ReactNode }) {
       return <CandidateDashboard />;
     }
 
-    // Usuario con otro rol en página standalone - mostrar dashboard central
-    // ✅ CORREGIDO: CentralDashboard ahora usa el contexto internamente, no necesita props
-    return <CentralDashboard />;
+    // Usuario con roles no autorizados - mostrar página de no autorizado
+    if (hasOnlyUnauthorizedRoles) {
+      return <Unauthorized />;
+    }
+
+    // Usuario con rol autorizado en página principal - mostrar dashboard central
+    if (pathname === "/" && hasAuthorizedRole) {
+      return <CentralDashboard />;
+    }
+
+    // Para otras páginas standalone con usuario autorizado, mostrar children
+    return <>{children}</>;
   }
 
   // Para páginas protegidas (no standalone), verificar autenticación
@@ -113,6 +125,15 @@ export function AuthRouter({ children }: { children: React.ReactNode }) {
 
   // Si es candidato en una página protegida, redirigir (el useEffect se encargará)
   if (userRole === "candidate") {
+    return (
+      <div className="min-vh-100 d-flex align-items-center justify-content-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Si tiene solo roles no autorizados en página protegida, redirigir (el useEffect se encargará)
+  if (hasOnlyUnauthorizedRoles) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center">
         <LoadingSpinner />

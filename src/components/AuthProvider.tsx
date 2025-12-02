@@ -1,3 +1,5 @@
+// src/components/AuthProvider.tsx
+
 "use client";
 
 import {
@@ -14,16 +16,18 @@ import {
   onAuthStateChanged,
   signOut as firebaseSignOut,
 } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, DocumentData, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/firebase/clientApp";
 import {
   createPlatformUser,
   updateUserLastLogin,
 } from "@/services/userService";
+import { RoleHelpers } from "@/lib/constants";
 
 interface AuthContextType {
   user: User | null;
   userRole: string | null;
+  userRoles: string[] | null;
   loadingUserStatus: boolean;
   hasError: boolean;
   errorDetails: string;
@@ -41,24 +45,41 @@ export function useAuth() {
   return context;
 }
 
+// Interfaz para los datos de usuario de Firestore - CORREGIDA: sin any
+interface FirestoreUserData {
+  role?: string;
+  roles?: string[];
+  primaryRole?: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  dni?: string;
+  invitationCode?: string;
+  invitationDocId?: string;
+  createdAt?: Timestamp | null;
+  lastLoginAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
+  loginHistory?: Timestamp[] | null;
+  isActive?: boolean;
+  userType?: "platform" | "candidate";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[] | null>(null);
   const [loadingUserStatus, setLoadingUserStatus] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
-  // ⭐ NUEVO: Referencia para controlar el bucle
   const isUpdatingLoginRef = useRef(false);
   const lastLoginUpdateRef = useRef<number>(0);
 
-  // Función para recargar datos de usuario
   const reloadUserData = useCallback(async () => {
     setReloadTrigger((prev) => prev + 1);
   }, []);
 
-  // ✅ Función para cerrar sesión - CORREGIDA
   const signOut = useCallback(async (): Promise<void> => {
     if (!auth) {
       console.error("No se puede cerrar sesión: auth no está disponible");
@@ -74,6 +95,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Helper para procesar datos de usuario desde Firestore - COMPLETAMENTE TIPADO
+  const processUserData = useCallback(
+    (userData: FirestoreUserData | DocumentData) => {
+      // Convertir a FirestoreUserData para tener tipos seguros
+      const data = userData as FirestoreUserData;
+
+      let roles: string[];
+      let primaryRole: string;
+
+      if (data.roles && Array.isArray(data.roles)) {
+        roles = data.roles;
+        primaryRole = data.primaryRole || RoleHelpers.getPrimaryRole(roles);
+      } else if (data.role) {
+        roles = [data.role];
+        primaryRole = data.role;
+      } else {
+        roles = ["pending_verification"];
+        primaryRole = "pending_verification";
+      }
+
+      return { roles, primaryRole };
+    },
+    []
+  );
+
   // Listener de autenticación y datos de usuario
   useEffect(() => {
     if (typeof window === "undefined" || !auth || !db) {
@@ -86,11 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       setUserRole(null);
+      setUserRoles(null);
       setLoadingUserStatus(true);
       setHasError(false);
       setErrorDetails("");
 
-      // ⭐ NUEVO: Resetear flags cuando cambia el usuario
       isUpdatingLoginRef.current = false;
       lastLoginUpdateRef.current = 0;
 
@@ -102,24 +148,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const userDocRef = doc(db, "users", firebaseUser.uid);
 
-        // Usamos onSnapshot para escuchar cambios en tiempo real
         const docUnsubscribe = onSnapshot(
           userDocRef,
           async (userDocSnap) => {
             try {
               if (userDocSnap.exists()) {
-                const userData = userDocSnap.data();
-                const role = userData?.role || null;
-                setUserRole(role);
+                const userData = userDocSnap.data() as FirestoreUserData;
 
-                // ⭐ CORREGIDO: Prevenir bucle infinito
+                const { roles, primaryRole } = processUserData(userData);
+
+                setUserRoles(roles);
+                setUserRole(primaryRole);
+
+                console.log("🔄 Datos de usuario procesados:", {
+                  uid: firebaseUser.uid,
+                  roles,
+                  primaryRole,
+                });
+
                 const now = Date.now();
                 const timeSinceLastUpdate = now - lastLoginUpdateRef.current;
 
-                // Solo actualizar último login si:
-                // 1. No estamos ya en medio de una actualización
-                // 2. Ha pasado al menos 30 segundos desde la última actualización
-                // 3. O es la primera vez que detectamos el usuario
                 if (
                   !isUpdatingLoginRef.current &&
                   (timeSinceLastUpdate > 30000 ||
@@ -134,18 +183,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   );
                   await updateUserLastLogin(firebaseUser.uid);
 
-                  // Permitir nuevas actualizaciones después de un breve delay
                   setTimeout(() => {
                     isUpdatingLoginRef.current = false;
                   }, 1000);
                 }
               } else {
-                // ⭐ NUEVO: Si no existe el documento, crear usuario de plataforma
                 console.log(
                   "🔹 Usuario sin documento en Firestore, creando..."
                 );
                 await createPlatformUser(firebaseUser);
-                setUserRole("nuevo");
+
+                setUserRoles(["pending_verification"]);
+                setUserRole("pending_verification");
               }
               setHasError(false);
             } catch (snapshotError) {
@@ -184,11 +233,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => authUnsubscribe();
-  }, [reloadTrigger]); // Recargar cuando cambie el trigger
+  }, [reloadTrigger, processUserData]);
 
   const contextValue: AuthContextType = {
     user,
     userRole,
+    userRoles,
     loadingUserStatus,
     hasError,
     errorDetails,
