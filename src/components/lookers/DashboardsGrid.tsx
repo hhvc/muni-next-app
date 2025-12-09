@@ -1,48 +1,63 @@
-// src/components/forms/FormsGrid.tsx - VERSIÓN CON ORDER CORREGIDO
+// src/components/lookers/DashboardsGrid.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { collection, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
-import { FormMetadata } from "@/types/formTypes";
-import FormCard, { FormGrid } from "./FormCard";
+import { LookerDashboardMetadata } from "@/types/lookerTypes";
+import DashboardCard from "./DashboardCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
-interface FormsGridProps {
+interface DashboardsGridProps {
   category?: string;
   showInactive?: boolean;
 }
 
-export default function FormsGrid({
+// Componente contenedor para organizar múltiples DashboardCards
+function DashboardsGridContainer({
+  children,
+  cols = 3,
+}: {
+  children: React.ReactNode;
+  cols?: 1 | 2 | 3 | 4;
+}) {
+  const gridClasses = {
+    1: "row-cols-1",
+    2: "row-cols-1 row-cols-md-2",
+    3: "row-cols-1 row-cols-md-2 row-cols-lg-3",
+    4: "row-cols-1 row-cols-md-2 row-cols-lg-4",
+  };
+
+  return <div className={`row g-4 ${gridClasses[cols]}`}>{children}</div>;
+}
+
+export default function DashboardsGrid({
   category,
   showInactive = false,
-}: FormsGridProps) {
+}: DashboardsGridProps) {
   const { user, userRoles } = useAuth();
-  const [forms, setForms] = useState<FormMetadata[]>([]);
+  const [dashboards, setDashboards] = useState<LookerDashboardMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Función para normalizar allowedRoles (puede ser string, array, null o undefined)
   const normalizeAllowedRoles = useCallback(
     (roles: unknown): string[] | null => {
       if (!roles) return null;
 
       if (Array.isArray(roles)) {
-        // Asegurar que todos los elementos sean strings
         return roles.map((role) => String(role));
       }
 
       if (typeof roles === "string") {
-        // Intentar parsear si es un string JSON
         try {
           const parsed = JSON.parse(roles);
           if (Array.isArray(parsed)) {
             return parsed.map((role) => String(role));
           }
-          return [roles]; // Si es un string simple, convertir a array
+          return [roles];
         } catch {
-          return [roles]; // Si no es JSON, convertir a array con un elemento
+          return [roles];
         }
       }
 
@@ -51,7 +66,6 @@ export default function FormsGrid({
     []
   );
 
-  // Función segura para convertir Firestore Timestamp a Date
   const toSafeDate = useCallback((timestamp: unknown): Date | null => {
     if (!timestamp) return null;
 
@@ -59,13 +73,11 @@ export default function FormsGrid({
       return timestamp.toDate();
     }
 
-    // Si es un objeto con método toDate
     const timestampObj = timestamp as { toDate?: () => Date };
     if (typeof timestampObj.toDate === "function") {
       return timestampObj.toDate();
     }
 
-    // Si tiene propiedades seconds/nanoseconds (Firestore Timestamp en formato objeto)
     const timestampWithSeconds = timestamp as {
       seconds?: number;
       nanoseconds?: number;
@@ -77,13 +89,12 @@ export default function FormsGrid({
     return null;
   }, []);
 
-  // Función para obtener el orden (con valor por defecto 0)
   const getOrderValue = useCallback((order: number | undefined): number => {
     return order || 0;
   }, []);
 
   useEffect(() => {
-    const fetchForms = async () => {
+    const fetchDashboards = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -91,74 +102,71 @@ export default function FormsGrid({
 
       try {
         setLoading(true);
-        const formsRef = collection(db, "forms");
-        const querySnapshot = await getDocs(formsRef);
-        const formsData: FormMetadata[] = [];
+        const dashboardsRef = collection(db, "dashboards");
+        const querySnapshot = await getDocs(dashboardsRef);
+        const dashboardsData: LookerDashboardMetadata[] = [];
 
         const currentUserRoles = userRoles || [];
 
         querySnapshot.forEach((doc) => {
           const data = doc.data();
 
-          // DEBUG: Ver qué datos se están obteniendo
-          console.log(`📄 Formulario ${doc.id}:`, data);
-
-          // Normalizar allowedRoles
           const normalizedAllowedRoles = normalizeAllowedRoles(
             data.allowedRoles
           );
 
-          const form: FormMetadata = {
+          const dashboard: LookerDashboardMetadata = {
             id: doc.id,
             title: data.title || "Sin título",
             description: data.description || null,
-            formUrl: data.formUrl || "#",
-            iconUrl: data.iconUrl || null,
+            dashboardUrl: data.dashboardUrl || "#",
+            embedUrl: data.embedUrl || null,
+            thumbnailUrl: data.thumbnailUrl || null,
             category: data.category || null,
+            reportId: data.reportId || null,
+            dataSource: data.dataSource || null,
+            refreshFrequency: data.refreshFrequency || null,
+            owner: data.owner || null,
             tags: Array.isArray(data.tags) ? data.tags : null,
             createdBy: data.createdBy || user.uid,
             createdAt: toSafeDate(data.createdAt),
             updatedAt: toSafeDate(data.updatedAt),
-            isActive: data.isActive !== false, // Por defecto true si no está definido
+            isActive: data.isActive !== false,
             allowedRoles: normalizedAllowedRoles,
             order: data.order,
           };
 
-          // Filtrar por estado activo (si showInactive es false)
-          if (!showInactive && !form.isActive) {
+          if (!showInactive && !dashboard.isActive) {
             return;
           }
 
-          // Filtrar por categoría en el cliente
-          if (category && form.category !== category) {
+          if (category && dashboard.category !== category) {
             return;
           }
 
-          // Filtrar por roles permitidos - MANERA SEGURA
-          const shouldShowForm = () => {
-            // Si no tiene restricciones de roles, mostrar a todos
-            if (!form.allowedRoles || form.allowedRoles.length === 0) {
+          const shouldShowDashboard = () => {
+            if (
+              !dashboard.allowedRoles ||
+              dashboard.allowedRoles.length === 0
+            ) {
               return true;
             }
 
-            // Si el usuario tiene alguno de los roles permitidos
             if (currentUserRoles.length > 0) {
               return currentUserRoles.some((role: string) => {
-                return form.allowedRoles?.includes(role) || false;
+                return dashboard.allowedRoles?.includes(role) || false;
               });
             }
 
             return false;
           };
 
-          if (shouldShowForm()) {
-            formsData.push(form);
+          if (shouldShowDashboard()) {
+            dashboardsData.push(dashboard);
           }
         });
 
-        // Ordenar por order y title en el cliente - USANDO getOrderValue
-        formsData.sort((a, b) => {
-          // Primero por orden (con valor por defecto 0 si es undefined)
+        dashboardsData.sort((a, b) => {
           const orderA = getOrderValue(a.order);
           const orderB = getOrderValue(b.order);
 
@@ -166,19 +174,20 @@ export default function FormsGrid({
             return orderA - orderB;
           }
 
-          // Luego por título
           const titleA = a.title || "";
           const titleB = b.title || "";
           return titleA.localeCompare(titleB);
         });
 
-        console.log(`✅ Formularios filtrados: ${formsData.length}`, formsData);
-        setForms(formsData);
+        console.log(
+          `✅ Dashboards filtrados: ${dashboardsData.length}`,
+          dashboardsData
+        );
+        setDashboards(dashboardsData);
         setError("");
       } catch (err) {
-        console.error("❌ Error al cargar formularios:", err);
+        console.error("❌ Error al cargar dashboards:", err);
 
-        // Verificar si es un error de Firebase
         const firebaseError = err as { code?: string; message?: string };
 
         if (firebaseError.code === "failed-precondition") {
@@ -187,15 +196,14 @@ export default function FormsGrid({
           );
         } else {
           const errorMessage = firebaseError.message || "Error desconocido";
-          setError(`No se pudieron cargar los formularios: ${errorMessage}`);
+          setError(`No se pudieron cargar los dashboards: ${errorMessage}`);
         }
       } finally {
         setLoading(false);
       }
     };
 
-    // Agregar un pequeño delay para evitar llamadas excesivas
-    const timer = setTimeout(fetchForms, 100);
+    const timer = setTimeout(fetchDashboards, 100);
     return () => clearTimeout(timer);
   }, [
     user,
@@ -230,7 +238,7 @@ export default function FormsGrid({
     );
   }
 
-  if (forms.length === 0) {
+  if (dashboards.length === 0) {
     return (
       <div className="text-center py-5">
         <div className="mb-3">
@@ -239,20 +247,20 @@ export default function FormsGrid({
             width="64"
             height="64"
             fill="#6c757d"
-            className="bi bi-file-earmark"
+            className="bi bi-bar-chart-line"
             viewBox="0 0 16 16"
           >
-            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z" />
+            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h2V2h-2v12zm-3 0V7H7v7h2zm-5 0v-3H2v3h2z" />
           </svg>
         </div>
-        <h4 className="text-white">No hay formularios disponibles</h4>
-        <p className="text-white">
+        <h4 className="text-muted">No hay dashboards disponibles</h4>
+        <p className="text-muted">
           {category
-            ? `No se encontraron formularios en la categoría "${category}"`
-            : "Aún no se han registrado formularios."}
+            ? `No se encontraron dashboards en la categoría "${category}"`
+            : "Aún no se han registrado dashboards."}
         </p>
         <button
-          className="btn btn-outline-primary"
+          className="btn btn-outline-info"
           onClick={() => window.location.reload()}
         >
           Recargar
@@ -265,28 +273,30 @@ export default function FormsGrid({
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h3 className="text-white">Formularios Disponibles</h3>
+          <h3>Dashboards de Looker Studio</h3>
           {category && (
-            <span className="badge bg-primary">Categoría: {category}</span>
+            <span className="badge bg-info">Categoría: {category}</span>
           )}
         </div>
-        <small className="text-muted">{forms.length} formulario(s)</small>
+        <small className="text-muted">{dashboards.length} dashboard(s)</small>
       </div>
 
-      <FormGrid cols={3}>
-        {forms.map((form) => (
-          <FormCard
-            key={form.id}
-            title={form.title}
-            description={form.description || undefined}
-            formUrl={form.formUrl}
-            iconUrl={form.iconUrl || undefined}
+      <DashboardsGridContainer cols={3}>
+        {dashboards.map((dashboard) => (
+          <DashboardCard
+            key={dashboard.id}
+            title={dashboard.title}
+            description={dashboard.description || undefined}
+            dashboardUrl={dashboard.dashboardUrl}
+            embedUrl={dashboard.embedUrl || undefined}
+            thumbnailUrl={dashboard.thumbnailUrl || undefined}
             target="_blank"
-            badge={form.category || undefined}
+            badge={dashboard.category || undefined}
             badgeColor="info"
+            showThumbnail={true}
           />
         ))}
-      </FormGrid>
+      </DashboardsGridContainer>
     </div>
   );
 }

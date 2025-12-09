@@ -1,21 +1,80 @@
-// src/components/dashboards/AdminDashboard.tsx
+// src/components/dashboards/AdminDashboard.tsx - VERSIÓN MEJORADA CON LOOKER
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/firebase/clientApp";
 import FormsManager from "@/components/forms/FormsManager";
 import FormCreator from "@/components/forms/FormCreator";
 import UsersTable from "./UsersTable";
 import InvitationsTable from "./InvitationsTable";
+import DashboardsGrid from "@/components/lookers/DashboardsGrid";
+import DashboardCreator from "@/components/lookers/DashboardCreator";
 
-type AdminTab = "forms" | "create-form" | "users" | "invitations" | "settings";
+type AdminTab =
+  | "forms"
+  | "create-form"
+  | "lookers"
+  | "create-looker"
+  | "users"
+  | "invitations"
+  | "settings";
 
 export default function AdminDashboard() {
   const { userRoles } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("forms");
+  const [stats, setStats] = useState({
+    formsCount: 0,
+    dashboardsCount: 0,
+    usersCount: 0,
+    invitationsCount: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   // Verificar si el usuario es admin
   const isAdmin = userRoles?.includes("admin") || userRoles?.includes("root");
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
+
+        // Contar formularios
+        const formsSnapshot = await getDocs(collection(db, "forms"));
+        const formsCount = formsSnapshot.size;
+
+        // Contar dashboards
+        const dashboardsSnapshot = await getDocs(collection(db, "dashboards"));
+        const dashboardsCount = dashboardsSnapshot.size;
+
+        // Contar usuarios
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const usersCount = usersSnapshot.size;
+
+        // Contar invitaciones (usando candidateInvitations)
+        const invitationsSnapshot = await getDocs(
+          collection(db, "candidateInvitations")
+        );
+        const invitationsCount = invitationsSnapshot.size;
+
+        setStats({
+          formsCount,
+          dashboardsCount,
+          usersCount,
+          invitationsCount,
+        });
+      } catch (error) {
+        console.error("Error al cargar estadísticas:", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    if (isAdmin) {
+      fetchStats();
+    }
+  }, [isAdmin]);
 
   if (!isAdmin) {
     return (
@@ -30,20 +89,58 @@ export default function AdminDashboard() {
 
   // Opciones del menú de navegación
   const menuItems = [
-    { id: "forms" as AdminTab, label: "📋 Formularios", icon: "bi-list-ul" },
+    {
+      id: "forms" as AdminTab,
+      label: "📋 Formularios",
+      icon: "bi-list-ul",
+      color: "primary",
+    },
     {
       id: "create-form" as AdminTab,
       label: "➕ Nuevo Formulario",
       icon: "bi-plus-circle",
+      color: "primary",
     },
-    { id: "users" as AdminTab, label: "👥 Usuarios", icon: "bi-people" },
+    {
+      id: "lookers" as AdminTab,
+      label: "📊 Dashboards",
+      icon: "bi-bar-chart-line",
+      color: "info",
+    },
+    {
+      id: "create-looker" as AdminTab,
+      label: "➕ Nuevo Dashboard",
+      icon: "bi-plus-circle",
+      color: "info",
+    },
+    {
+      id: "users" as AdminTab,
+      label: "👥 Usuarios",
+      icon: "bi-people",
+      color: "success",
+    },
     {
       id: "invitations" as AdminTab,
       label: "✉️ Invitaciones",
       icon: "bi-envelope",
+      color: "warning",
     },
-    { id: "settings" as AdminTab, label: "⚙️ Configuración", icon: "bi-gear" },
+    {
+      id: "settings" as AdminTab,
+      label: "⚙️ Configuración",
+      icon: "bi-gear",
+      color: "secondary",
+    },
   ];
+
+  // Función para manejar éxito en creación
+  const handleFormSuccess = () => {
+    setActiveTab("forms");
+  };
+
+  const handleDashboardSuccess = () => {
+    setActiveTab("lookers");
+  };
 
   return (
     <div className="container-fluid mt-4">
@@ -54,7 +151,7 @@ export default function AdminDashboard() {
             className="card border-0 shadow-sm sticky-top"
             style={{ top: "20px" }}
           >
-            <div className="card-header bg-primary text-white">
+            <div className="card-header bg-gradient-primary text-muted">
               <h5 className="mb-0">
                 <i className="bi bi-shield-check me-2"></i>
                 Panel Admin
@@ -67,14 +164,17 @@ export default function AdminDashboard() {
                     key={item.id}
                     className={`nav-link text-start py-3 px-3 border-bottom ${
                       activeTab === item.id
-                        ? "bg-light text-primary fw-bold"
+                        ? `bg-light text-${item.color} fw-bold`
                         : "text-dark"
                     }`}
                     onClick={() => setActiveTab(item.id)}
                     style={{
                       borderRadius: 0,
                       borderLeft:
-                        activeTab === item.id ? "4px solid #0d6efd" : "none",
+                        activeTab === item.id
+                          ? `4px solid var(--bs-${item.color})`
+                          : "none",
+                      transition: "all 0.2s ease",
                     }}
                   >
                     <i className={`bi ${item.icon} me-2`}></i>
@@ -86,7 +186,7 @@ export default function AdminDashboard() {
             <div className="card-footer bg-light">
               <small className="text-muted">
                 <i className="bi bi-info-circle me-1"></i>
-                Panel de administración
+                Panel de administración completo
               </small>
             </div>
           </div>
@@ -98,21 +198,27 @@ export default function AdminDashboard() {
             <div className="col-12">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h1 className="h3 mb-0">
+                  <h1 className="h3 mb-0 text-white">
                     {activeTab === "forms" && "Gestión de Formularios"}
                     {activeTab === "create-form" && "Crear Nuevo Formulario"}
+                    {activeTab === "lookers" && "Gestión de Dashboards"}
+                    {activeTab === "create-looker" && "Crear Nuevo Dashboard"}
                     {activeTab === "users" && "Gestión de Usuarios"}
                     {activeTab === "invitations" && "Gestión de Invitaciones"}
                     {activeTab === "settings" && "Configuración"}
                   </h1>
-                  <p className="text-muted mb-0">
+                  <p className="text-white mb-0">
                     {activeTab === "forms" &&
-                      "Administra y visualiza todos los formularios"}
+                      "Administra y visualiza todos los formularios de Google Forms"}
                     {activeTab === "create-form" &&
-                      "Registra un nuevo formulario en el sistema"}
+                      "Registra un nuevo formulario de Google en el sistema"}
+                    {activeTab === "lookers" &&
+                      "Administra y visualiza todos los dashboards de Looker Studio"}
+                    {activeTab === "create-looker" &&
+                      "Registra un nuevo dashboard de Looker Studio en el sistema"}
                     {activeTab === "users" && "Gestiona usuarios y permisos"}
                     {activeTab === "invitations" &&
-                      "Crea y gestiona invitaciones"}
+                      "Crea y gestiona invitaciones para nuevos usuarios"}
                     {activeTab === "settings" &&
                       "Configura parámetros del sistema"}
                   </p>
@@ -154,19 +260,14 @@ export default function AdminDashboard() {
                       </div>
                       <div className="row">
                         <div className="col-12 col-lg-8">
-                          <FormCreator
-                            onSuccess={() => {
-                              // Opcional: Mostrar mensaje de éxito o redirigir
-                              console.log("Formulario creado exitosamente");
-                            }}
-                          />
+                          <FormCreator onSuccess={handleFormSuccess} />
                         </div>
                         <div className="col-12 col-lg-4">
                           <div className="card border-primary">
                             <div className="card-header bg-primary text-white">
                               <h6 className="mb-0">
                                 <i className="bi bi-lightbulb me-2"></i>
-                                Consejos
+                                Consejos para Formularios
                               </h6>
                             </div>
                             <div className="card-body">
@@ -206,6 +307,116 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
+                  {activeTab === "lookers" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Aquí puedes gestionar todos los dashboards de Looker
+                        Studio registrados en el sistema.
+                      </div>
+                      <div className="mb-4">
+                        <button
+                          className="btn btn-info text-white"
+                          onClick={() => setActiveTab("create-looker")}
+                        >
+                          <i className="bi bi-plus-circle me-2"></i>
+                          Crear Nuevo Dashboard
+                        </button>
+                      </div>
+                      <DashboardsGrid showInactive={true} />
+                    </div>
+                  )}
+
+                  {activeTab === "create-looker" && (
+                    <div>
+                      <div className="alert alert-info" role="alert">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Completa los datos para registrar un nuevo dashboard de
+                        Looker Studio en el sistema.
+                      </div>
+                      <div className="row">
+                        <div className="col-12 col-lg-8">
+                          <DashboardCreator
+                            onSuccess={handleDashboardSuccess}
+                          />
+                        </div>
+                        <div className="col-12 col-lg-4">
+                          <div className="card border-info">
+                            <div className="card-header bg-info text-white">
+                              <h6 className="mb-0">
+                                <i className="bi bi-lightbulb me-2"></i>
+                                Consejos para Dashboards
+                              </h6>
+                            </div>
+                            <div className="card-body">
+                              <ul className="list-unstyled mb-0">
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Asegúrate de que el dashboard tenga permisos
+                                    de visualización públicos
+                                  </small>
+                                </li>
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Usa la URL de embed si está disponible para
+                                    mejor integración
+                                  </small>
+                                </li>
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Agrega una miniatura para mejor experiencia
+                                    visual
+                                  </small>
+                                </li>
+                                <li className="mb-2">
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Especifica la fuente de datos para
+                                    referencia
+                                  </small>
+                                </li>
+                                <li>
+                                  <small>
+                                    <i className="bi bi-check-circle text-success me-2"></i>
+                                    Indica la frecuencia de actualización del
+                                    dashboard
+                                  </small>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                          <div className="card border-warning mt-3">
+                            <div className="card-header bg-warning text-dark">
+                              <h6 className="mb-0">
+                                <i className="bi bi-arrow-left-right me-2"></i>
+                                Navegación Rápida
+                              </h6>
+                            </div>
+                            <div className="card-body">
+                              <button
+                                className="btn btn-outline-info btn-sm w-100 mb-2"
+                                onClick={() => setActiveTab("lookers")}
+                              >
+                                <i className="bi bi-arrow-left me-2"></i>
+                                Volver a Dashboards
+                              </button>
+                              <button
+                                className="btn btn-outline-primary btn-sm w-100"
+                                onClick={() => setActiveTab("create-form")}
+                              >
+                                <i className="bi bi-file-earmark-plus me-2"></i>
+                                Crear Formulario
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {activeTab === "users" && (
                     <div>
                       <div className="alert alert-info" role="alert">
@@ -232,39 +443,123 @@ export default function AdminDashboard() {
                     <div>
                       <div className="alert alert-info" role="alert">
                         <i className="bi bi-info-circle me-2"></i>
-                        Configura los parámetros del sistema. Esta sección está
-                        en desarrollo.
+                        Configura los parámetros del sistema.
                       </div>
-                      <div className="text-center py-5">
-                        <div className="mb-3">
-                          <i
-                            className="bi bi-gear text-primary"
-                            style={{ fontSize: "4rem" }}
-                          ></i>
+                      <div className="row">
+                        <div className="col-md-6">
+                          <div className="card border-primary mb-4">
+                            <div className="card-header bg-primary text-white">
+                              <h6 className="mb-0">
+                                <i className="bi bi-gear me-2"></i>
+                                Configuración General
+                              </h6>
+                            </div>
+                            <div className="card-body">
+                              <div className="mb-3">
+                                <label className="form-label">
+                                  Nombre del Sistema
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  placeholder="Sistema Municipal"
+                                />
+                              </div>
+                              <div className="mb-3">
+                                <label className="form-label">
+                                  Tiempo de Sesión (minutos)
+                                </label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  defaultValue="30"
+                                  min="5"
+                                  max="240"
+                                />
+                              </div>
+                              <button className="btn btn-primary">
+                                Guardar Configuración
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <h4>Configuración del Sistema</h4>
-                        <p className="text-muted">
-                          Esta funcionalidad está en desarrollo. Pronto podrás
-                          configurar:
-                        </p>
-                        <ul className="list-unstyled text-start d-inline-block">
-                          <li className="mb-2">
-                            <i className="bi bi-check-circle text-muted me-2"></i>
-                            Parámetros generales
-                          </li>
-                          <li className="mb-2">
-                            <i className="bi bi-check-circle text-muted me-2"></i>
-                            Configuración de notificaciones
-                          </li>
-                          <li className="mb-2">
-                            <i className="bi bi-check-circle text-muted me-2"></i>
-                            Integraciones externas
-                          </li>
-                          <li>
-                            <i className="bi bi-check-circle text-muted me-2"></i>
-                            Backup y restauración
-                          </li>
-                        </ul>
+                        <div className="col-md-6">
+                          <div className="card border-info mb-4">
+                            <div className="card-header bg-info text-white">
+                              <h6 className="mb-0">
+                                <i className="bi bi-bell me-2"></i>
+                                Notificaciones
+                              </h6>
+                            </div>
+                            <div className="card-body">
+                              <div className="form-check mb-3">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id="notifyNewUsers"
+                                  defaultChecked
+                                />
+                                <label
+                                  className="form-check-label"
+                                  htmlFor="notifyNewUsers"
+                                >
+                                  Notificar nuevos usuarios registrados
+                                </label>
+                              </div>
+                              <div className="form-check mb-3">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id="notifyFormSubmissions"
+                                  defaultChecked
+                                />
+                                <label
+                                  className="form-check-label"
+                                  htmlFor="notifyFormSubmissions"
+                                >
+                                  Notificar envíos de formularios
+                                </label>
+                              </div>
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id="notifyDashboardUsage"
+                                />
+                                <label
+                                  className="form-check-label"
+                                  htmlFor="notifyDashboardUsage"
+                                >
+                                  Notificar uso de dashboards
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="card border-secondary">
+                        <div className="card-header bg-secondary text-white">
+                          <h6 className="mb-0">
+                            <i className="bi bi-database me-2"></i>
+                            Mantenimiento
+                          </h6>
+                        </div>
+                        <div className="card-body">
+                          <div className="d-flex gap-2">
+                            <button className="btn btn-outline-secondary">
+                              <i className="bi bi-download me-2"></i>
+                              Backup de Datos
+                            </button>
+                            <button className="btn btn-outline-secondary">
+                              <i className="bi bi-trash me-2"></i>
+                              Limpiar Cache
+                            </button>
+                            <button className="btn btn-outline-danger">
+                              <i className="bi bi-exclamation-triangle me-2"></i>
+                              Modo Mantenimiento
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -273,76 +568,147 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Estadísticas rápidas */}
+          {/* Estadísticas rápidas - MEJORADAS */}
           <div className="row mt-4">
             <div className="col-md-3">
-              <div className="card border-0 shadow-sm bg-primary text-white">
+              <div className="card border-0 shadow-sm bg-gradient-primary text-muted">
                 <div className="card-body">
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between align-items-center">
                     <div>
                       <h6 className="card-title">Formularios</h6>
-                      <h3 className="mb-0">12</h3>
+                      <h3 className="mb-0">
+                        {loadingStats ? (
+                          <div
+                            className="spinner-border spinner-border-sm"
+                            role="status"
+                          >
+                            <span className="visually-hidden">Cargando...</span>
+                          </div>
+                        ) : (
+                          stats.formsCount
+                        )}
+                      </h3>
                     </div>
                     <div>
                       <i
                         className="bi bi-file-earmark-text"
-                        style={{ fontSize: "2rem" }}
+                        style={{ fontSize: "2rem", opacity: 0.8 }}
                       ></i>
                     </div>
+                  </div>
+                  <div className="mt-2">
+                    <small>
+                      <i className="bi bi-arrow-up-circle me-1"></i>
+                      <span className="ms-1">Total registrados</span>
+                    </small>
                   </div>
                 </div>
               </div>
             </div>
+
             <div className="col-md-3">
-              <div className="card border-0 shadow-sm bg-success text-white">
+              <div className="card border-0 shadow-sm bg-gradient-info text-muted">
                 <div className="card-body">
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between align-items-center">
                     <div>
-                      <h6 className="card-title">Usuarios Activos</h6>
-                      <h3 className="mb-0">45</h3>
+                      <h6 className="card-title">Dashboards</h6>
+                      <h3 className="mb-0">
+                        {loadingStats ? (
+                          <div
+                            className="spinner-border spinner-border-sm"
+                            role="status"
+                          >
+                            <span className="visually-hidden">Cargando...</span>
+                          </div>
+                        ) : (
+                          stats.dashboardsCount
+                        )}
+                      </h3>
+                    </div>
+                    <div>
+                      <i
+                        className="bi bi-bar-chart-line"
+                        style={{ fontSize: "2rem", opacity: 0.8 }}
+                      ></i>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <small>
+                      <i className="bi bi-graph-up me-1"></i>
+                      <span className="ms-1">Looker Studio</span>
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-3">
+              <div className="card border-0 shadow-sm bg-gradient-success text-muted">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 className="card-title">Usuarios</h6>
+                      <h3 className="mb-0">
+                        {loadingStats ? (
+                          <div
+                            className="spinner-border spinner-border-sm"
+                            role="status"
+                          >
+                            <span className="visually-hidden">Cargando...</span>
+                          </div>
+                        ) : (
+                          stats.usersCount
+                        )}
+                      </h3>
                     </div>
                     <div>
                       <i
                         className="bi bi-people"
-                        style={{ fontSize: "2rem" }}
+                        style={{ fontSize: "2rem", opacity: 0.8 }}
                       ></i>
                     </div>
+                  </div>
+                  <div className="mt-2">
+                    <small>
+                      <i className="bi bi-person-check me-1"></i>
+                      <span className="ms-1">Activos</span>
+                    </small>
                   </div>
                 </div>
               </div>
             </div>
+
             <div className="col-md-3">
-              <div className="card border-0 shadow-sm bg-warning text-dark">
+              <div className="card border-0 shadow-sm bg-gradient-warning text-muted">
                 <div className="card-body">
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between align-items-center">
                     <div>
                       <h6 className="card-title">Invitaciones</h6>
-                      <h3 className="mb-0">8</h3>
+                      <h3 className="mb-0">
+                        {loadingStats ? (
+                          <div
+                            className="spinner-border spinner-border-sm"
+                            role="status"
+                          >
+                            <span className="visually-hidden">Cargando...</span>
+                          </div>
+                        ) : (
+                          stats.invitationsCount
+                        )}
+                      </h3>
                     </div>
                     <div>
                       <i
                         className="bi bi-envelope"
-                        style={{ fontSize: "2rem" }}
+                        style={{ fontSize: "2rem", opacity: 0.8 }}
                       ></i>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="card border-0 shadow-sm bg-info text-white">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between">
-                    <div>
-                      <h6 className="card-title">Esta Semana</h6>
-                      <h3 className="mb-0">3</h3>
-                    </div>
-                    <div>
-                      <i
-                        className="bi bi-calendar-week"
-                        style={{ fontSize: "2rem" }}
-                      ></i>
-                    </div>
+                  <div className="mt-2">
+                    <small>
+                      <i className="bi bi-hourglass-split me-1"></i>
+                      <span className="ms-1">Pendientes/Usadas</span>
+                    </small>
                   </div>
                 </div>
               </div>

@@ -3,18 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
+    "dev:emulators": "NEXT_PUBLIC_FIREBASE_EMULATOR=true next dev --hostname 127.0.0.1",
+    "dev:prod-config": "NEXT_PUBLIC_FIREBASE_EMULATOR=false next dev",
     "build": "next build",
+    "build:prod": "NEXT_PUBLIC_FIREBASE_EMULATOR=false FIREBASE_FUNCTIONS=true next build",
+    "build:dev": "NEXT_PUBLIC_FIREBASE_EMULATOR=true next build",
+    "start": "next start",
+    "start:prod": "NODE_ENV=production next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "emulate": "firebase emulators:start --import=./emulator-data --export-on-exit",
+    "emulate:full": "concurrently -n \"NEXT,EMULATORS\" -c \"bgBlue.bold,bgGreen.bold\" \"npm run dev:emulators\" \"npm run emulate\"",
+    "emulate:dev": "firebase emulators:start --only functions,firestore,auth,storage --config firebase-emulators.json",
+    "emulate:auth": "firebase emulators:start --only auth",
+    "emulate:firestore": "firebase emulators:start --only firestore",
+    "emulate:storage": "firebase emulators:start --only storage",
     "deploy": "firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy:functions": "cd functions && npm run deploy",
-    "start": "next start",
-    "lint": "next lint",
-    "emulate": "firebase emulators:start --import=./emulator-data --export-on-exit",
+    "deploy:firestore-rules": "firebase deploy --only firestore:rules",
+    "deploy:storage-rules": "firebase deploy --only storage:rules",
+    "deploy:all": "firebase deploy --only hosting,functions,firestore:rules,storage:rules",
     "build:functions": "cd functions && npm run build",
-    "serve:dev": "next dev",
-    "emulate:full": "concurrently \"npm run dev\" \"firebase emulators:start --import=./emulator-data --export-on-exit\"",
-    "emulate:dev": "firebase emulators:start --only functions,firestore,auth, storage --config firebase-emulators.json"
+    "serve:functions": "cd functions && npm run serve",
+    "clean": "rm -rf .next .firebase out dist node_modules/.cache",
+    "clean:all": "rm -rf node_modules .next .firebase out dist && npm install"
   },
   "dependencies": {
     "bootstrap": "^5.3.6",
@@ -32,6 +47,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.27.0",
+    "@typescript-eslint/parser": "^8.27.0",
     "concurrently": "^9.1.2",
     "dotenv": "^16.5.0",
     "eslint": "^9",
@@ -39,6 +56,7 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }

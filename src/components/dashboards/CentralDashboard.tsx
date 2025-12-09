@@ -26,6 +26,9 @@ export default function CentralDashboard() {
 
   const specificDashboardRoute = getDashboardRoute(userRole);
 
+  // Verificar si el usuario tiene permisos de administración
+  const hasAdminAccess = ["admin", "root", "data"].includes(userRole || "");
+
   return (
     <div
       className="min-vh-100 py-4"
@@ -60,7 +63,7 @@ export default function CentralDashboard() {
                 </p>
               </div>
 
-              {/* Tarjetas de aplicativos */}
+              {/* Tarjeta 1: Tableros de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -71,15 +74,15 @@ export default function CentralDashboard() {
                       <span style={{ fontSize: "1.8rem" }}>📊</span>
                     </div>
                     <h5 className="card-title text-dark mb-2">
-                      Análisis de Datos
+                      Tableros de Datos
                     </h5>
                     <p className="card-text small text-muted mb-3">
-                      Sistema de reportes y análisis de métricas
-                      organizacionales
+                      Reportes dinámicos e interactivos con visualización de
+                      métricas.
                     </p>
                     <button
                       className="btn btn-outline-primary btn-sm"
-                      onClick={() => router.push(specificDashboardRoute)}
+                      onClick={() => router.push("/dashboard/looker")}
                     >
                       Acceder
                     </button>
@@ -87,6 +90,132 @@ export default function CentralDashboard() {
                 </div>
               </div>
 
+              {/* Tarjeta 2: Formularios */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm bg-light hover-shadow">
+                  <div className="card-body text-center p-4">
+                    <div
+                      className="bg-info text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                      style={{ width: "70px", height: "70px" }}
+                    >
+                      <span style={{ fontSize: "1.8rem" }}>📋</span>
+                    </div>
+                    <h5 className="card-title text-dark mb-2">Formularios</h5>
+                    <p className="card-text small text-muted mb-3">
+                      Formularios en uso para la recolección de datos.
+                    </p>
+                    <button
+                      className="btn btn-outline-info btn-sm"
+                      onClick={() => router.push("/dashboard/forms")}
+                    >
+                      Acceder
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tarjeta 3: Sistemas de Gestión (Inactivo por ahora) */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
+                  <div className="card-body text-center p-4">
+                    <div
+                      className="bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                      style={{ width: "70px", height: "70px" }}
+                    >
+                      <span style={{ fontSize: "1.8rem" }}>🔧</span>
+                    </div>
+                    <h5 className="card-title text-dark mb-2">
+                      Sistemas de Gestión
+                    </h5>
+                    <p className="card-text small text-muted mb-3">
+                      Aplicativos integrados a medida.
+                    </p>
+                    <button
+                      className="btn btn-outline-success btn-sm"
+                      disabled
+                      title="Próximamente"
+                    >
+                      Próximamente
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tarjeta 4: Panel de Administración Datos (con ícono mejorado) */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
+                  <div className="card-body text-center p-4">
+                    <div
+                      className="bg-warning text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                      style={{ width: "70px", height: "70px" }}
+                    >
+                      <span style={{ fontSize: "1.8rem" }}>🖥️</span>
+                    </div>
+                    <h5 className="card-title text-dark mb-2">
+                      Panel de Administración Datos
+                    </h5>
+                    <p className="card-text small text-muted mb-3">
+                      Configuración del sistema, usuarios y permisos (solo
+                      administradores)
+                    </p>
+                    {hasAdminAccess ? (
+                      <button
+                        className="btn btn-outline-warning btn-sm"
+                        onClick={() => router.push(specificDashboardRoute)}
+                      >
+                        Acceder
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        disabled
+                        title="Se requieren permisos de administrador"
+                      >
+                        No disponible
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tarjeta 5: Requerimientos de Datos (Inactivo por ahora) */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
+                  <div className="card-body text-center p-4">
+                    <div
+                      className="bg-purple text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                      style={{
+                        width: "70px",
+                        height: "70px",
+                        backgroundColor: "#6f42c1", // Color púrpura para destacar
+                      }}
+                    >
+                      <span style={{ fontSize: "1.8rem" }}>📨</span>
+                    </div>
+                    <h5 className="card-title text-dark mb-2">
+                      Requerimientos de Datos
+                    </h5>
+                    <p className="card-text small text-muted mb-3">
+                      Solicita nuevos reportes, análisis o modificaciones al
+                      área de Datos
+                    </p>
+                    <button
+                      className="btn btn-outline-purple btn-sm"
+                      disabled
+                      title="Próximamente"
+                      style={{
+                        borderColor: "#6f42c1",
+                        color: "#6f42c1",
+                      }}
+                    >
+                      Próximamente
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campos comentados - Mantenidos como estaban */}
+              {/* 
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -108,7 +237,9 @@ export default function CentralDashboard() {
                   </div>
                 </div>
               </div>
+              */}
 
+              {/* 
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -130,28 +261,9 @@ export default function CentralDashboard() {
                   </div>
                 </div>
               </div>
+              */}
 
-              {/* Tarjetas adicionales */}
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-info text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📋</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">Formularios</h5>
-                    <p className="card-text small text-muted mb-3">
-                      Sistema de formularios y solicitudes internas
-                    </p>
-                    <button className="btn btn-outline-info btn-sm">
-                      Acceder
-                    </button>
-                  </div>
-                </div>
-              </div>
-
+              {/* 
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
@@ -173,7 +285,9 @@ export default function CentralDashboard() {
                   </div>
                 </div>
               </div>
+              */}
 
+              {/* 
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
@@ -195,6 +309,7 @@ export default function CentralDashboard() {
                   </div>
                 </div>
               </div>
+              */}
             </div>
           </div>
         </div>
@@ -209,6 +324,18 @@ export default function CentralDashboard() {
         }
         .transition-all {
           transition: all 0.3s ease;
+        }
+        .bg-purple {
+          background-color: #6f42c1;
+        }
+        .btn-outline-purple {
+          color: #6f42c1;
+          border-color: #6f42c1;
+        }
+        .btn-outline-purple:hover {
+          color: white;
+          background-color: #6f42c1;
+          border-color: #6f42c1;
         }
       `}</style>
     </div>
