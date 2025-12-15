@@ -1,9 +1,9 @@
-// src/components/dashboards/AdminDashboard.tsx - VERSIÓN MEJORADA CON LOOKER
+// src/components/dashboards/AdminDashboard.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import FormsManager from "@/components/forms/FormsManager";
 import FormCreator from "@/components/forms/FormCreator";
@@ -11,8 +11,10 @@ import UsersTable from "./UsersTable";
 import InvitationsTable from "./InvitationsTable";
 import DashboardsGrid from "@/components/lookers/DashboardsGrid";
 import DashboardCreator from "@/components/lookers/DashboardCreator";
+import RequirementsList from "@/components/requirements/RequirementsList";
 
 type AdminTab =
+  | "requirements" // ✅ Ahora primero
   | "forms"
   | "create-form"
   | "lookers"
@@ -23,17 +25,26 @@ type AdminTab =
 
 export default function AdminDashboard() {
   const { userRoles } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTab>("forms");
+  const [activeTab, setActiveTab] = useState<AdminTab>("requirements"); // ✅ Por defecto en requerimientos
   const [stats, setStats] = useState({
     formsCount: 0,
     dashboardsCount: 0,
     usersCount: 0,
     invitationsCount: 0,
+    requirementsCount: 0,
+    requirementsInicial: 0,
+    requirementsEnRevision: 0,
+    requirementsEnProgreso: 0,
+    requirementsCompletados: 0,
+    requirementsRechazados: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
   // Verificar si el usuario es admin
-  const isAdmin = userRoles?.includes("admin") || userRoles?.includes("root");
+  const isAdmin =
+    userRoles?.includes("admin") ||
+    userRoles?.includes("root") ||
+    userRoles?.includes("data");
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -58,11 +69,40 @@ export default function AdminDashboard() {
         );
         const invitationsCount = invitationsSnapshot.size;
 
+        // ✅ Contar requerimientos por estado
+        const requirementsSnapshot = await getDocs(
+          collection(db, "requirements")
+        );
+        const requirements = requirementsSnapshot.docs.map((doc) => doc.data());
+
+        const requirementsCount = requirementsSnapshot.size;
+        const requirementsInicial = requirements.filter(
+          (r) => r.estado === "inicial"
+        ).length;
+        const requirementsEnRevision = requirements.filter(
+          (r) => r.estado === "en_revision"
+        ).length;
+        const requirementsEnProgreso = requirements.filter(
+          (r) => r.estado === "en_progreso"
+        ).length;
+        const requirementsCompletados = requirements.filter(
+          (r) => r.estado === "completado"
+        ).length;
+        const requirementsRechazados = requirements.filter(
+          (r) => r.estado === "rechazado"
+        ).length;
+
         setStats({
           formsCount,
           dashboardsCount,
           usersCount,
           invitationsCount,
+          requirementsCount,
+          requirementsInicial,
+          requirementsEnRevision,
+          requirementsEnProgreso,
+          requirementsCompletados,
+          requirementsRechazados,
         });
       } catch (error) {
         console.error("Error al cargar estadísticas:", error);
@@ -87,8 +127,14 @@ export default function AdminDashboard() {
     );
   }
 
-  // Opciones del menú de navegación
+  // ✅ Opciones del menú de navegación - REQUERIMIENTOS PRIMERO
   const menuItems = [
+    {
+      id: "requirements" as AdminTab,
+      label: "📨 Requerimientos",
+      icon: "bi-clipboard-check",
+      color: "purple",
+    },
     {
       id: "forms" as AdminTab,
       label: "📋 Formularios",
@@ -199,6 +245,8 @@ export default function AdminDashboard() {
               <div className="d-flex justify-content-between align-items-center">
                 <div>
                   <h1 className="h3 mb-0 text-white">
+                    {activeTab === "requirements" &&
+                      "Gestión de Requerimientos"}
                     {activeTab === "forms" && "Gestión de Formularios"}
                     {activeTab === "create-form" && "Crear Nuevo Formulario"}
                     {activeTab === "lookers" && "Gestión de Tableros"}
@@ -208,6 +256,8 @@ export default function AdminDashboard() {
                     {activeTab === "settings" && "Configuración"}
                   </h1>
                   <p className="text-white mb-0">
+                    {activeTab === "requirements" &&
+                      "Gestiona todos los requerimientos de datos solicitados por usuarios"}
                     {activeTab === "forms" &&
                       "Administra y visualiza todos los formularios de Google Forms"}
                     {activeTab === "create-form" &&
@@ -239,6 +289,24 @@ export default function AdminDashboard() {
             <div className="col-12">
               <div className="card border-0 shadow-sm">
                 <div className="card-body">
+                  {/* ✅ NUEVA SECCIÓN: Gestión de Requerimientos - AHORA PRIMERO */}
+                  {activeTab === "requirements" && (
+                    <div>
+                      <div
+                        className="alert alert-purple"
+                        role="alert"
+                        style={{ backgroundColor: "#6f42c1", color: "white" }}
+                      >
+                        <i className="bi bi-info-circle me-2"></i>
+                        Aquí puedes gestionar todos los requerimientos de datos
+                        solicitados por los usuarios. Puedes asignar
+                        responsables, cambiar estados y agregar comentarios.
+                      </div>
+
+                      <RequirementsList />
+                    </div>
+                  )}
+
                   {activeTab === "forms" && (
                     <div>
                       <div className="alert alert-info" role="alert">
@@ -520,6 +588,20 @@ export default function AdminDashboard() {
                                   Notificar envíos de formularios
                                 </label>
                               </div>
+                              <div className="form-check mb-3">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id="notifyNewRequirements"
+                                  defaultChecked
+                                />
+                                <label
+                                  className="form-check-label"
+                                  htmlFor="notifyNewRequirements"
+                                >
+                                  Notificar nuevos requerimientos
+                                </label>
+                              </div>
                               <div className="form-check">
                                 <input
                                   className="form-check-input"
@@ -568,9 +650,145 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Estadísticas rápidas - MEJORADAS */}
+          {/* ✅ Estadísticas rápidas - MEJORADAS */}
+          {/* Primera fila: Estadísticas de Requerimientos (siempre visible) */}
           <div className="row mt-4">
-            <div className="col-md-3">
+            <div className="col-12">
+              <h5 className="text-white mb-3">
+                Estadísticas de Requerimientos
+              </h5>
+            </div>
+
+            {/* Total */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-gradient-purple text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">Total</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsCount
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Inicial */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-secondary text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">Inicial</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsInicial
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* En Revisión */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-info text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">En Revisión</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsEnRevision
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* En Progreso */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-warning text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">En Progreso</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsEnProgreso
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Completados */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-success text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">Completados</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsCompletados
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Rechazados */}
+            <div className="col-md-2 col-6 mb-3">
+              <div className="card border-0 shadow-sm bg-danger text-muted">
+                <div className="card-body text-center">
+                  <h6 className="card-title">Rechazados</h6>
+                  <h3 className="mb-0">
+                    {loadingStats ? (
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                    ) : (
+                      stats.requirementsRechazados
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Segunda fila: Otras estadísticas */}
+          <div className="row mt-2">
+            <div className="col-md-3 col-6 mb-3">
               <div className="card border-0 shadow-sm bg-gradient-primary text-muted">
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center">
@@ -606,7 +824,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-3 col-6 mb-3">
               <div className="card border-0 shadow-sm bg-gradient-info text-muted">
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center">
@@ -642,7 +860,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-3 col-6 mb-3">
               <div className="card border-0 shadow-sm bg-gradient-success text-muted">
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center">
@@ -678,7 +896,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-3 col-6 mb-3">
               <div className="card border-0 shadow-sm bg-gradient-warning text-muted">
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center">
@@ -707,7 +925,7 @@ export default function AdminDashboard() {
                   <div className="mt-2">
                     <small>
                       <i className="bi bi-hourglass-split me-1"></i>
-                      <span className="ms-1">Pendientes/Usadas</span>
+                      <span className="ms-1">Pendientes</span>
                     </small>
                   </div>
                 </div>
@@ -716,6 +934,26 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .bg-purple {
+          background-color: #6f42c1;
+        }
+        .border-purple {
+          border-color: #6f42c1;
+        }
+        .text-purple {
+          color: #6f42c1;
+        }
+        .bg-gradient-purple {
+          background: linear-gradient(45deg, #6f42c1, #a37de9);
+        }
+        .alert-purple {
+          background-color: #6f42c1;
+          color: white;
+          border-color: #5a32a3;
+        }
+      `}</style>
     </div>
   );
 }
