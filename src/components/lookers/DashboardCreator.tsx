@@ -95,7 +95,7 @@ export default function DashboardCreator({
     setSuccess("");
 
     if (!user) {
-      setError("Debes estar autenticado para crear dashboards");
+      setError("Debes estar autenticado para crear tableros");
       setLoading(false);
       return;
     }
@@ -107,7 +107,7 @@ export default function DashboardCreator({
     }
 
     if (!dashboardUrl.trim()) {
-      setError("La URL del dashboard es obligatoria");
+      setError("La URL del tablero es obligatoria");
       setLoading(false);
       return;
     }
@@ -136,7 +136,7 @@ export default function DashboardCreator({
         order: order || 0,
       };
 
-      console.log("📤 Datos del dashboard a guardar:", dashboardData);
+      console.log("📤 Datos del tablero a guardar:", dashboardData);
 
       const cleanedData = prepareForFirestore(dashboardData);
 
@@ -147,13 +147,13 @@ export default function DashboardCreator({
           updatedAt: serverTimestamp(),
         };
 
-        console.log("🔄 Actualizando dashboard existente:", dashboardToEdit.id);
+        console.log("🔄 Actualizando tablero existente:", dashboardToEdit.id);
         await updateDoc(
           doc(db, "dashboards", dashboardToEdit.id),
           dashboardToSave
         );
-        console.log("✅ Dashboard actualizado con ID:", dashboardToEdit.id);
-        setSuccess("Dashboard actualizado exitosamente");
+        console.log("✅ Tablero actualizado con ID:", dashboardToEdit.id);
+        setSuccess("Tablero actualizado exitosamente");
       } else {
         // Modo creación - agregar nuevo documento
         const dashboardToSave = {
@@ -162,27 +162,27 @@ export default function DashboardCreator({
           updatedAt: serverTimestamp(),
         };
 
-        console.log("💾 Guardando nuevo dashboard...");
+        console.log("💾 Guardando nuevo tablero...");
         const docRef = await addDoc(
           collection(db, "dashboards"),
           dashboardToSave
         );
 
-        console.log("✅ Dashboard guardado con ID:", docRef.id);
-        setSuccess("Dashboard registrado exitosamente");
+        console.log("✅ Tablero guardado con ID:", docRef.id);
+        setSuccess("Tablero registrado exitosamente");
       }
 
       if (onSuccess) {
         onSuccess();
       }
     } catch (err) {
-      console.error("❌ Error al guardar dashboard:", err);
+      console.error("❌ Error al guardar tablero:", err);
 
       const firebaseError = err as { code?: string; message?: string };
 
       if (firebaseError.code === "permission-denied") {
         setError(
-          "No tienes permisos para crear dashboards. Contacta al administrador."
+          "No tienes permisos para crear tableros. Contacta al administrador."
         );
       } else if (firebaseError.code === "unavailable") {
         setError(
@@ -190,7 +190,7 @@ export default function DashboardCreator({
         );
       } else {
         const errorMessage = firebaseError.message || "Error desconocido";
-        setError(`Error al guardar el dashboard: ${errorMessage}`);
+        setError(`Error al guardar el tablero: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
@@ -208,10 +208,10 @@ export default function DashboardCreator({
           {isEditMode ? (
             <>
               <i className="bi bi-pencil me-2"></i>
-              Editar Dashboard de Looker Studio
+              Editar Tablero de Looker Studio
             </>
           ) : (
-            "Registrar Nuevo Dashboard de Looker Studio"
+            "Registrar Nuevo Tablero de Looker Studio"
           )}
         </h5>
       </div>
@@ -261,7 +261,7 @@ export default function DashboardCreator({
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Dashboard de Ventas"
+                placeholder="Ej: Tablero de Ventas"
                 required
                 disabled={loading}
               />
@@ -283,10 +283,10 @@ export default function DashboardCreator({
               />
             </div>
 
-            {/* URL del dashboard */}
+            {/* URL del tablero/ dashboard */}
             <div className="col-12 mb-3">
               <label htmlFor="dashboardUrl" className="form-label">
-                URL del dashboard de Looker Studio *
+                URL del tablero de Looker Studio *
               </label>
               <input
                 type="url"
@@ -299,7 +299,7 @@ export default function DashboardCreator({
                 disabled={loading}
               />
               <div className="form-text">
-                URL completa del dashboard de Looker Studio.
+                URL completa del tablero de Looker Studio.
               </div>
             </div>
 
@@ -318,7 +318,7 @@ export default function DashboardCreator({
                 disabled={loading}
               />
               <div className="form-text">
-                Si el dashboard tiene una URL de embed diferente, colócala aquí.
+                Si el tablero tiene una URL de embed diferente, colócala aquí.
               </div>
             </div>
 
@@ -365,7 +365,7 @@ export default function DashboardCreator({
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe el propósito del dashboard, qué métricas incluye, etc."
+                placeholder="Describe el propósito del tablero, qué métricas incluye, etc."
                 disabled={loading}
               />
             </div>
@@ -578,9 +578,9 @@ export default function DashboardCreator({
                   Guardando...
                 </>
               ) : isEditMode ? (
-                "Actualizar Dashboard"
+                "Actualizar Tablero"
               ) : (
-                "Guardar Dashboard"
+                "Guardar Tablero"
               )}
             </button>
           </div>

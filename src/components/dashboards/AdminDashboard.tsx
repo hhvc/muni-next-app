@@ -44,7 +44,7 @@ export default function AdminDashboard() {
         const formsSnapshot = await getDocs(collection(db, "forms"));
         const formsCount = formsSnapshot.size;
 
-        // Contar dashboards
+        // Contar dashboards (tableros)
         const dashboardsSnapshot = await getDocs(collection(db, "dashboards"));
         const dashboardsCount = dashboardsSnapshot.size;
 
@@ -103,13 +103,13 @@ export default function AdminDashboard() {
     },
     {
       id: "lookers" as AdminTab,
-      label: "📊 Dashboards",
+      label: "📊 Tableros",
       icon: "bi-bar-chart-line",
       color: "info",
     },
     {
       id: "create-looker" as AdminTab,
-      label: "➕ Nuevo Dashboard",
+      label: "➕ Nuevo Tablero",
       icon: "bi-plus-circle",
       color: "info",
     },
@@ -201,8 +201,8 @@ export default function AdminDashboard() {
                   <h1 className="h3 mb-0 text-white">
                     {activeTab === "forms" && "Gestión de Formularios"}
                     {activeTab === "create-form" && "Crear Nuevo Formulario"}
-                    {activeTab === "lookers" && "Gestión de Dashboards"}
-                    {activeTab === "create-looker" && "Crear Nuevo Dashboard"}
+                    {activeTab === "lookers" && "Gestión de Tableros"}
+                    {activeTab === "create-looker" && "Crear Nuevo Tablero"}
                     {activeTab === "users" && "Gestión de Usuarios"}
                     {activeTab === "invitations" && "Gestión de Invitaciones"}
                     {activeTab === "settings" && "Configuración"}
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="alert alert-info" role="alert">
                         <i className="bi bi-info-circle me-2"></i>
-                        Aquí puedes gestionar todos los dashboards de Looker
+                        Aquí puedes gestionar todos los tableros de Looker
                         Studio registrados en el sistema.
                       </div>
                       <div className="mb-4">
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
                           onClick={() => setActiveTab("create-looker")}
                         >
                           <i className="bi bi-plus-circle me-2"></i>
-                          Crear Nuevo Dashboard
+                          Crear Nuevo Tablero
                         </button>
                       </div>
                       <DashboardsGrid showInactive={true} />
@@ -331,7 +331,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="alert alert-info" role="alert">
                         <i className="bi bi-info-circle me-2"></i>
-                        Completa los datos para registrar un nuevo dashboard de
+                        Completa los datos para registrar un nuevo tablero de
                         Looker Studio en el sistema.
                       </div>
                       <div className="row">
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
                             <div className="card-header bg-info text-white">
                               <h6 className="mb-0">
                                 <i className="bi bi-lightbulb me-2"></i>
-                                Consejos para Dashboards
+                                Consejos para Tableros
                               </h6>
                             </div>
                             <div className="card-body">
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
                                 <li className="mb-2">
                                   <small>
                                     <i className="bi bi-check-circle text-success me-2"></i>
-                                    Asegúrate de que el dashboard tenga permisos
+                                    Asegúrate de que el tablero tenga permisos
                                     de visualización públicos
                                   </small>
                                 </li>
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
                                   <small>
                                     <i className="bi bi-check-circle text-success me-2"></i>
                                     Indica la frecuencia de actualización del
-                                    dashboard
+                                    tablero
                                   </small>
                                 </li>
                               </ul>
@@ -401,7 +401,7 @@ export default function AdminDashboard() {
                                 onClick={() => setActiveTab("lookers")}
                               >
                                 <i className="bi bi-arrow-left me-2"></i>
-                                Volver a Dashboards
+                                Volver a Tableros
                               </button>
                               <button
                                 className="btn btn-outline-primary btn-sm w-100"
@@ -530,7 +530,7 @@ export default function AdminDashboard() {
                                   className="form-check-label"
                                   htmlFor="notifyDashboardUsage"
                                 >
-                                  Notificar uso de dashboards
+                                  Notificar uso de tableros
                                 </label>
                               </div>
                             </div>
@@ -611,7 +611,7 @@ export default function AdminDashboard() {
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center">
                     <div>
-                      <h6 className="card-title">Dashboards</h6>
+                      <h6 className="card-title">Tableros</h6>
                       <h3 className="mb-0">
                         {loadingStats ? (
                           <div

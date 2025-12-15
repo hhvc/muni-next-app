@@ -7,11 +7,11 @@ export default function LookerDashboardsPage() {
         <div className="col-12">
           <div className="card">
             <div className="card-header bg-info text-white">
-              <h1 className="h3 mb-0">Dashboards de Looker Studio</h1>
+              <h1 className="h3 mb-0">Tableros de Looker Studio</h1>
             </div>
             <div className="card-body">
               <p className="lead">
-                Accede a los dashboards y reportes de Looker Studio para
+                Accede a los tableros de Looker Studio para
                 visualizar datos y métricas.
               </p>
               <DashboardsGrid />

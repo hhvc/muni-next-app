@@ -180,13 +180,13 @@ export default function DashboardsGrid({
         });
 
         console.log(
-          `✅ Dashboards filtrados: ${dashboardsData.length}`,
+          `✅ Tableros filtrados: ${dashboardsData.length}`,
           dashboardsData
         );
         setDashboards(dashboardsData);
         setError("");
       } catch (err) {
-        console.error("❌ Error al cargar dashboards:", err);
+        console.error("❌ Error al cargar tableros:", err);
 
         const firebaseError = err as { code?: string; message?: string };
 
@@ -196,7 +196,7 @@ export default function DashboardsGrid({
           );
         } else {
           const errorMessage = firebaseError.message || "Error desconocido";
-          setError(`No se pudieron cargar los dashboards: ${errorMessage}`);
+          setError(`No se pudieron cargar los tableros: ${errorMessage}`);
         }
       } finally {
         setLoading(false);
@@ -253,11 +253,11 @@ export default function DashboardsGrid({
             <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h2V2h-2v12zm-3 0V7H7v7h2zm-5 0v-3H2v3h2z" />
           </svg>
         </div>
-        <h4 className="text-muted">No hay dashboards disponibles</h4>
+        <h4 className="text-muted">No hay tableros disponibles</h4>
         <p className="text-muted">
           {category
-            ? `No se encontraron dashboards en la categoría "${category}"`
-            : "Aún no se han registrado dashboards."}
+            ? `No se encontraron tableros en la categoría "${category}"`
+            : "Aún no se han registrado tableros."}
         </p>
         <button
           className="btn btn-outline-info"
@@ -273,12 +273,12 @@ export default function DashboardsGrid({
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h3>Dashboards de Looker Studio</h3>
+          <h3>Tableros de Looker Studio</h3>
           {category && (
             <span className="badge bg-info">Categoría: {category}</span>
           )}
         </div>
-        <small className="text-muted">{dashboards.length} dashboard(s)</small>
+        <small className="text-muted">{dashboards.length} tablero(s)</small>
       </div>
 
       <DashboardsGridContainer cols={3}>

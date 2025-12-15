@@ -17,9 +17,9 @@ export default function DashboardsPage() {
         <div className="col-12">
           <div className="card mb-4">
             <div className="card-body">
-              <h1 className="h3 mb-4">Dashboards de Looker Studio</h1>
+              <h1 className="h3 mb-4">Tableros de Looker Studio</h1>
               <p className="text-muted">
-                Administra los dashboards de Looker Studio disponibles para los
+                Administra los tableros (dashborards) de Looker Studio disponibles para los
                 usuarios.
               </p>
             </div>
@@ -31,7 +31,7 @@ export default function DashboardsPage() {
         <div className="col-lg-8 mb-4">
           <div className="card">
             <div className="card-header">
-              <h5 className="mb-0">Dashboards Disponibles</h5>
+              <h5 className="mb-0">Tableros Disponibles</h5>
             </div>
             <div className="card-body">
               <DashboardsGrid key={refreshKey} />

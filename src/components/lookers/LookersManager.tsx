@@ -660,7 +660,7 @@ export default function LookersManager() {
                 <div className="card-body">
                   <h5 className="card-title">
                     <i className="bi bi-lightbulb text-info me-2"></i>
-                    Tips para dashboards de Looker Studio
+                    Tips para tableros de Looker Studio
                   </h5>
                   <ul className="list-unstyled">
                     <li className="mb-2">

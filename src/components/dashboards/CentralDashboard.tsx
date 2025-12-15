@@ -63,7 +63,42 @@ export default function CentralDashboard() {
                 </p>
               </div>
 
-              {/* Tarjeta 1: Tableros de Datos */}
+              {/* Tarjeta 1: Requerimientos de Datos */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
+                  <div className="card-body text-center p-4">
+                    <div
+                      className="bg-purple text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                      style={{
+                        width: "70px",
+                        height: "70px",
+                        backgroundColor: "#6f42c1", // Color púrpura para destacar
+                      }}
+                    >
+                      <span style={{ fontSize: "1.8rem" }}>📨</span>
+                    </div>
+                    <h5 className="card-title text-dark mb-2">
+                      Requerimientos de Datos
+                    </h5>
+                    <p className="card-text small text-muted mb-3">
+                      Solicita nuevos reportes, análisis o modificaciones al
+                      área de Datos
+                    </p>
+                    <button
+                      className="btn btn-outline-purple btn-sm"
+                      onClick={() => router.push("/dashboard/requirements")}
+                      style={{
+                        borderColor: "#6f42c1",
+                        color: "#6f42c1",
+                      }}
+                    >
+                      Acceder
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tarjeta 2: Tableros de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -90,7 +125,7 @@ export default function CentralDashboard() {
                 </div>
               </div>
 
-              {/* Tarjeta 2: Formularios */}
+              {/* Tarjeta 3: Formularios */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light hover-shadow">
                   <div className="card-body text-center p-4">
@@ -114,7 +149,7 @@ export default function CentralDashboard() {
                 </div>
               </div>
 
-              {/* Tarjeta 3: Sistemas de Gestión (Inactivo por ahora) */}
+              {/* Tarjeta 4: Sistemas de Gestión (Inactivo por ahora) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -141,7 +176,7 @@ export default function CentralDashboard() {
                 </div>
               </div>
 
-              {/* Tarjeta 4: Panel de Administración Datos (con ícono mejorado) */}
+              {/* Tarjeta 5: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
                   <div className="card-body text-center p-4">
@@ -174,42 +209,6 @@ export default function CentralDashboard() {
                         No disponible
                       </button>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tarjeta 5: Requerimientos de Datos (Inactivo por ahora) */}
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-purple text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{
-                        width: "70px",
-                        height: "70px",
-                        backgroundColor: "#6f42c1", // Color púrpura para destacar
-                      }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📨</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Requerimientos de Datos
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Solicita nuevos reportes, análisis o modificaciones al
-                      área de Datos
-                    </p>
-                    <button
-                      className="btn btn-outline-purple btn-sm"
-                      disabled
-                      title="Próximamente"
-                      style={{
-                        borderColor: "#6f42c1",
-                        color: "#6f42c1",
-                      }}
-                    >
-                      Próximamente
-                    </button>
                   </div>
                 </div>
               </div>
