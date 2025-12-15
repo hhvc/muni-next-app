@@ -85,10 +85,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
 
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
-
   poweredByHeader: false,
 
   // Elimina swcMinify - Ya no es necesario en Next.js 15
