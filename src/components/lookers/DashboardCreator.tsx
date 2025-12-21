@@ -261,7 +261,7 @@ export default function DashboardCreator({
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Tablero de Ventas"
+                placeholder="Ej: Tablero Área Datos"
                 required
                 disabled={loading}
               />
@@ -278,7 +278,7 @@ export default function DashboardCreator({
                 id="category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ej: Ventas, Marketing, etc."
+                placeholder="Ej: Convivencia, Guardia Urbana, RRHH, etc."
                 disabled={loading}
               />
             </div>
@@ -422,7 +422,7 @@ export default function DashboardCreator({
                 id="owner"
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
-                placeholder="Ej: Depto. Ventas"
+                placeholder="Ej: Depto. Datos"
                 disabled={loading}
               />
             </div>

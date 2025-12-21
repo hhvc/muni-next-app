@@ -1,4 +1,3 @@
-// src/components/lookers/DashboardCard.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,8 +7,8 @@ interface DashboardCardProps {
   id?: string;
   title: string;
   description?: string;
-  dashboardUrl: string; // URL del dashboard de Looker Studio
-  embedUrl?: string; // URL para embed (opcional)
+  dashboardUrl: string;
+  embedUrl?: string;
   thumbnailUrl?: string;
   category?: string;
   tags?: string[];
@@ -26,6 +25,28 @@ interface DashboardCardProps {
   showThumbnail?: boolean;
 }
 
+/* =========================
+   Utils
+   ========================= */
+
+// Convierte URLs de Google Drive a URLs directas
+const convertGoogleDriveUrl = (url: string): string => {
+  if (!url) return "";
+
+  if (url.includes("uc?export=view")) {
+    return url;
+  }
+
+  if (url.includes("drive.google.com/file/d/")) {
+    const match = url.match(/\/d\/([^\/]+)/);
+    if (match?.[1]) {
+      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+  }
+
+  return url;
+};
+
 export default function DashboardCard({
   title,
   description,
@@ -37,7 +58,11 @@ export default function DashboardCard({
   target = "_blank",
   showThumbnail = true,
 }: DashboardCardProps) {
-  const displayBadge = badge;
+  const urlToUse = embedUrl || dashboardUrl;
+
+  const processedThumbnailUrl = thumbnailUrl
+    ? convertGoogleDriveUrl(thumbnailUrl)
+    : null;
 
   const badgeColors = {
     primary: "bg-primary text-white",
@@ -48,69 +73,98 @@ export default function DashboardCard({
     info: "bg-info text-white",
   };
 
-  // Usar embedUrl si está disponible, de lo contrario usar dashboardUrl
-  const urlToUse = embedUrl || dashboardUrl;
-
   return (
-    <div className="card h-100 border-0 shadow-sm hover-shadow transition-all">
+    <div className="card h-100 border-0 shadow-sm dashboard-card">
       <Link
         href={urlToUse}
         target={target}
-        className="text-decoration-none text-dark h-100 d-flex flex-column"
+        className="text-decoration-none h-100 d-flex flex-column"
       >
+        {/* =========================
+            Thumbnail
+           ========================= */}
         {showThumbnail && (
           <div
             className="card-img-top position-relative"
             style={{ height: "180px", overflow: "hidden" }}
           >
-            {thumbnailUrl ? (
-              <Image
-                src={thumbnailUrl}
-                alt={title}
-                fill
-                style={{ objectFit: "cover" }}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            ) : (
+            {processedThumbnailUrl ? (
               <div
-                className="w-100 h-100 d-flex align-items-center justify-content-center"
-                style={{ backgroundColor: "#f8f9fa" }}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                }}
               >
+                <Image
+                  src={processedThumbnailUrl}
+                  alt={title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  style={{ objectFit: "cover" }}
+                  onError={(e) => {
+                    // Fallback visual si falla la imagen
+                    const img = e.target as HTMLImageElement;
+                    img.style.display = "none";
+
+                    const parent = img.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `
+                        <div class="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
+                          <svg xmlns="http://www.w3.org/2000/svg"
+                            width="64"
+                            height="64"
+                            fill="currentColor"
+                            class="bi bi-bar-chart-line text-muted"
+                            viewBox="0 0 16 16">
+                            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z"/>
+                          </svg>
+                        </div>
+                      `;
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="64"
                   height="64"
-                  fill="#6c757d"
-                  className="bi bi-bar-chart-line"
+                  fill="currentColor"
+                  className="bi bi-bar-chart-line text-muted"
                   viewBox="0 0 16 16"
                 >
-                  <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h2V2h-2v12zm-3 0V7H7v7h2zm-5 0v-3H2v3h2z" />
+                  <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
                 </svg>
               </div>
             )}
           </div>
         )}
 
+        {/* =========================
+            Card body
+           ========================= */}
         <div className="card-body d-flex flex-column p-4">
-          {/* Header con título y badge */}
+          {/* Header */}
           <div className="d-flex align-items-start mb-3">
             <div className="flex-grow-1">
-              <h5 className="card-title mb-1 fw-semibold">{title}</h5>
-              {displayBadge && (
+              <h5 className="dashboard-card-title mb-1 fw-semibold">{title}</h5>
+
+              {badge && (
                 <span className={`badge ${badgeColors[badgeColor]} fs-7`}>
-                  {displayBadge}
+                  {badge}
                 </span>
               )}
             </div>
 
-            {/* Flecha de acceso */}
             <div className="ms-2 flex-shrink-0">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="20"
                 height="20"
                 fill="currentColor"
-                className="bi bi-box-arrow-up-right text-primary"
+                className="bi bi-box-arrow-up-right"
                 viewBox="0 0 16 16"
               >
                 <path
@@ -127,14 +181,14 @@ export default function DashboardCard({
 
           {/* Descripción */}
           {description && (
-            <p className="card-text text-muted flex-grow-1 small">
+            <p className="dashboard-card-text flex-grow-1 small">
               {description}
             </p>
           )}
 
           {/* Footer */}
           <div className="mt-3 pt-3 border-top">
-            <small className="text-primary fw-medium d-flex align-items-center">
+            <small className="fw-medium d-flex align-items-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -143,26 +197,13 @@ export default function DashboardCard({
                 className="bi bi-bar-chart-line me-2"
                 viewBox="0 0 16 16"
               >
-                <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h2V2h-2v12zm-3 0V7H7v7h2zm-5 0v-3H2v3h2z" />
+                <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
               </svg>
               Ver dashboard
             </small>
           </div>
         </div>
       </Link>
-
-      <style jsx>{`
-        .hover-shadow {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .hover-shadow:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
-        }
-        .transition-all {
-          transition: all 0.3s ease;
-        }
-      `}</style>
     </div>
   );
 }

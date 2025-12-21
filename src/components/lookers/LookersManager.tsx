@@ -16,7 +16,7 @@ import { LookerDashboardMetadata } from "@/types/lookerTypes";
 import DashboardCreator from "@/components/lookers/DashboardCreator";
 import DashboardCard from "@/components/lookers/DashboardCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import Image from "next/image"; // ✅ Agregar esta importación
+import Image from "next/image";
 
 type ManagerView = "view" | "create" | "edit";
 
@@ -32,13 +32,14 @@ export default function LookersManager() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
+  const [showAllDashboards, setShowAllDashboards] = useState(false); // <-- Nuevo estado
 
-  // Verificar permisos para crear dashboards
+  // Verificar permisos para crear tableros
   const canCreateDashboards = userRoles?.some((role) =>
     ["admin", "hr", "root", "data"].includes(role)
   );
 
-  // Verificar permisos para editar/eliminar dashboards
+  // Verificar permisos para editar/eliminar tableros
   const canEditDashboards = userRoles?.some((role) =>
     ["admin", "root"].includes(role)
   );
@@ -93,7 +94,7 @@ export default function LookersManager() {
     return null;
   }, []);
 
-  // Cargar dashboards
+  // Cargar tableros
   const fetchDashboards = useCallback(async () => {
     if (!user) return;
 
@@ -142,10 +143,10 @@ export default function LookersManager() {
       setDashboards(dashboardsData);
       setError("");
     } catch (err) {
-      console.error("❌ Error al cargar dashboards:", err);
+      console.error("❌ Error al cargar tableros:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
-        `Error al cargar dashboards: ${
+        `Error al cargar tableros: ${
           firebaseError.message || "Error desconocido"
         }`
       );
@@ -154,7 +155,7 @@ export default function LookersManager() {
     }
   }, [user, normalizeAllowedRoles, toSafeDate]);
 
-  // Cargar dashboards cuando cambia el refreshKey
+  // Cargar tableros cuando cambia el refreshKey
   useEffect(() => {
     fetchDashboards();
   }, [fetchDashboards, refreshKey]);
@@ -164,9 +165,10 @@ export default function LookersManager() {
     setRefreshKey((prev) => prev + 1);
     setActiveView("view");
     setSelectedDashboard(null);
+    setShowAllDashboards(false); // Resetear a vista de 6 tableros
   };
 
-  // Manejar edición de dashboard
+  // Manejar edición de tablero
   const handleEditDashboard = (dashboard: LookerDashboardMetadata) => {
     setSelectedDashboard(dashboard);
     setActiveView("edit");
@@ -178,10 +180,10 @@ export default function LookersManager() {
     setActiveView("view");
   };
 
-  // Manejar eliminación de dashboard
+  // Manejar eliminación de tablero
   const handleDeleteDashboard = async (dashboardId: string) => {
     if (!canEditDashboards || !dashboardId) {
-      setError("No tienes permisos para eliminar dashboards");
+      setError("No tienes permisos para eliminar tableros");
       return;
     }
 
@@ -191,22 +193,22 @@ export default function LookersManager() {
       setShowDeleteConfirm(null);
       setError("");
     } catch (err) {
-      console.error("❌ Error al eliminar dashboard:", err);
+      console.error("❌ Error al eliminar tablero:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
-        `Error al eliminar dashboard: ${
+        `Error al eliminar tablero: ${
           firebaseError.message || "Error desconocido"
         }`
       );
     }
   };
 
-  // Manejar activación/desactivación de dashboard
+  // Manejar activación/desactivación de tablero
   const handleToggleDashboardStatus = async (
     dashboard: LookerDashboardMetadata
   ) => {
     if (!canEditDashboards || !dashboard.id) {
-      setError("No tienes permisos para editar dashboards");
+      setError("No tienes permisos para editar tableros");
       return;
     }
 
@@ -218,7 +220,7 @@ export default function LookersManager() {
       setRefreshKey((prev) => prev + 1);
       setError("");
     } catch (err) {
-      console.error("❌ Error al cambiar estado del dashboard:", err);
+      console.error("❌ Error al cambiar estado del tablero:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
         `Error al cambiar estado: ${
@@ -248,10 +250,11 @@ export default function LookersManager() {
             onClick={() => {
               setActiveView("view");
               setSelectedDashboard(null);
+              setShowAllDashboards(false); // Resetear vista al cambiar tab
             }}
           >
             <i className="bi bi-bar-chart-line me-2"></i>
-            Ver Dashboards
+            Ver Tableros
             <span className="badge bg-secondary ms-2">{dashboards.length}</span>
           </button>
         </li>
@@ -262,7 +265,7 @@ export default function LookersManager() {
               onClick={() => setActiveView("create")}
             >
               <i className="bi bi-plus-circle me-2"></i>
-              Nuevo Dashboard
+              Nuevo Tablero
             </button>
           </li>
         )}
@@ -300,7 +303,7 @@ export default function LookersManager() {
             {loading ? (
               <div className="text-center py-5">
                 <LoadingSpinner />
-                <p className="mt-3 text-muted">Cargando dashboards...</p>
+                <p className="mt-3 text-muted">Cargando Tableros...</p>
               </div>
             ) : dashboards.length === 0 ? (
               <div className="text-center py-5">
@@ -310,9 +313,9 @@ export default function LookersManager() {
                     style={{ fontSize: "4rem" }}
                   ></i>
                 </div>
-                <h4 className="text-muted">No hay dashboards registrados</h4>
+                <h4 className="text-muted">No hay tableros registrados</h4>
                 <p className="text-muted mb-4">
-                  Comienza registrando tu primer dashboard de Looker Studio
+                  Comienza registrando tu primer tablero de Looker Studio
                 </p>
                 {canCreateDashboards && (
                   <button
@@ -320,7 +323,7 @@ export default function LookersManager() {
                     onClick={() => setActiveView("create")}
                   >
                     <i className="bi bi-plus-circle me-2"></i>
-                    Registrar Primer Dashboard
+                    Registrar Primer Tablero
                   </button>
                 )}
               </div>
@@ -380,12 +383,12 @@ export default function LookersManager() {
                   </div>
                 </div>
 
-                {/* Tabla de dashboards */}
+                {/* Tabla de tableros */}
                 <div className="card border-0 shadow-sm">
                   <div className="card-header bg-info text-white">
                     <h5 className="mb-0">
                       <i className="bi bi-bar-chart-line me-2"></i>
-                      Lista de Dashboards
+                      Lista de Tableros
                     </h5>
                   </div>
                   <div className="card-body p-0">
@@ -393,11 +396,11 @@ export default function LookersManager() {
                       <table className="table table-hover mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th>Dashboard</th>
+                            <th>Tablero</th>
                             <th>Categoría</th>
                             <th>Estado</th>
                             <th>Creado</th>
-                            <th className="text-end">Acciones</th>
+                            <th>Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -424,7 +427,6 @@ export default function LookersManager() {
                                           style={{
                                             objectFit: "cover",
                                           }}
-                                          // ✅ Solo usar unoptimized en desarrollo
                                           unoptimized={
                                             process.env.NODE_ENV !==
                                             "production"
@@ -488,8 +490,8 @@ export default function LookersManager() {
                                   {formatDate(dashboard.createdAt)}
                                 </small>
                               </td>
-                              <td className="text-end">
-                                <div className="btn-group" role="group">
+                              <td>
+                                <div className="d-flex flex-wrap gap-2">
                                   <a
                                     href={
                                       dashboard.embedUrl ||
@@ -497,41 +499,58 @@ export default function LookersManager() {
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="btn btn-sm btn-outline-primary"
+                                    className="btn btn-sm btn-outline-primary d-flex align-items-center"
+                                    title="Ver tablero"
                                   >
-                                    <i className="bi bi-eye"></i>
+                                    <i className="bi bi-eye me-1"></i>
+                                    Ver
                                   </a>
                                   {canEditDashboards && (
                                     <>
                                       <button
-                                        className="btn btn-sm btn-outline-info"
+                                        className="btn btn-sm btn-outline-info d-flex align-items-center"
                                         onClick={() =>
                                           handleEditDashboard(dashboard)
                                         }
+                                        title="Editar tablero"
                                       >
-                                        <i className="bi bi-pencil"></i>
+                                        <i className="bi bi-pencil me-1"></i>
+                                        Editar
                                       </button>
                                       <button
-                                        className="btn btn-sm btn-outline-success"
+                                        className="btn btn-sm btn-outline-warning d-flex align-items-center"
                                         onClick={() =>
                                           handleToggleDashboardStatus(dashboard)
                                         }
+                                        title={
+                                          dashboard.isActive
+                                            ? "Desactivar tablero"
+                                            : "Activar tablero"
+                                        }
                                       >
                                         {dashboard.isActive ? (
-                                          <i className="bi bi-pause"></i>
+                                          <>
+                                            <i className="bi bi-pause me-1"></i>
+                                            Desactivar
+                                          </>
                                         ) : (
-                                          <i className="bi bi-play"></i>
+                                          <>
+                                            <i className="bi bi-play me-1"></i>
+                                            Activar
+                                          </>
                                         )}
                                       </button>
                                       <button
-                                        className="btn btn-sm btn-outline-danger"
+                                        className="btn btn-sm btn-outline-danger d-flex align-items-center"
                                         onClick={() =>
                                           setShowDeleteConfirm(
                                             dashboard.id || null
                                           )
                                         }
+                                        title="Eliminar tablero"
                                       >
-                                        <i className="bi bi-trash"></i>
+                                        <i className="bi bi-trash me-1"></i>
+                                        Eliminar
                                       </button>
                                     </>
                                   )}
@@ -555,7 +574,7 @@ export default function LookersManager() {
                                         <div className="modal-body">
                                           <p>
                                             ¿Estás seguro de que deseas eliminar
-                                            el dashboard?
+                                            el tablero{" "}
                                             <strong>{dashboard.title}</strong>?
                                           </p>
                                           <p className="text-danger">
@@ -566,16 +585,17 @@ export default function LookersManager() {
                                         <div className="modal-footer">
                                           <button
                                             type="button"
-                                            className="btn btn-secondary"
+                                            className="btn btn-outline-secondary d-flex align-items-center"
                                             onClick={() =>
                                               setShowDeleteConfirm(null)
                                             }
                                           >
+                                            <i className="bi bi-x-circle me-1"></i>
                                             Cancelar
                                           </button>
                                           <button
                                             type="button"
-                                            className="btn btn-danger"
+                                            className="btn btn-danger d-flex align-items-center"
                                             onClick={() =>
                                               dashboard.id &&
                                               handleDeleteDashboard(
@@ -584,7 +604,7 @@ export default function LookersManager() {
                                             }
                                           >
                                             <i className="bi bi-trash me-1"></i>
-                                            Eliminar
+                                            Confirmar Eliminación
                                           </button>
                                         </div>
                                       </div>
@@ -600,7 +620,7 @@ export default function LookersManager() {
                   </div>
                   <div className="card-footer bg-light">
                     <small className="text-muted">
-                      Mostrando {dashboards.length} dashboard(s)
+                      Mostrando {dashboards.length} tablero(s)
                     </small>
                   </div>
                 </div>
@@ -612,7 +632,10 @@ export default function LookersManager() {
                     Vista Previa
                   </h5>
                   <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                    {dashboards.slice(0, 6).map((dashboard) => (
+                    {(showAllDashboards
+                      ? dashboards
+                      : dashboards.slice(0, 6)
+                    ).map((dashboard) => (
                       <div key={dashboard.id} className="col">
                         <DashboardCard
                           title={dashboard.title}
@@ -630,8 +653,13 @@ export default function LookersManager() {
                   </div>
                   {dashboards.length > 6 && (
                     <div className="text-center mt-3">
-                      <button className="btn btn-outline-info btn-sm">
-                        Ver todos los dashboards ({dashboards.length})
+                      <button
+                        className="btn btn-outline-info btn-sm"
+                        onClick={() => setShowAllDashboards(!showAllDashboards)}
+                      >
+                        {showAllDashboards
+                          ? "Ver menos"
+                          : `Ver todos los tableros (${dashboards.length})`}
                       </button>
                     </div>
                   )}
@@ -665,7 +693,7 @@ export default function LookersManager() {
                   <ul className="list-unstyled">
                     <li className="mb-2">
                       <small className="text-muted">
-                        1. Asegúrate de que el dashboard tenga permisos públicos
+                        1. Asegúrate de que el tablero tenga permisos públicos
                         de visualización
                       </small>
                     </li>
@@ -689,7 +717,7 @@ export default function LookersManager() {
                     </li>
                     <li>
                       <small className="text-muted">
-                        5. Asigna categorías para organizar tus dashboards
+                        5. Asigna categorías para organizar tus tableros
                       </small>
                     </li>
                   </ul>
@@ -698,7 +726,7 @@ export default function LookersManager() {
                     <div className="mt-4 pt-3 border-top">
                       <h6 className="text-info">
                         <i className="bi bi-info-circle me-2"></i>
-                        Editando Dashboard
+                        Editando Tablero
                       </h6>
                       <p className="small text-muted">
                         Estás editando:{" "}

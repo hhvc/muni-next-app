@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ThemeToggle from "@/components/ThemeToggle";
 
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthRouter } from "@/components/AuthRouter";
@@ -36,18 +37,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" data-theme="dark" data-bs-theme="dark">
       <head>
         <link rel="icon" href="/Ico-Faltas.ico" type="image/x-icon" />
         <link rel="apple-touch-icon" href="/Ico-Faltas.ico" />
       </head>
-      <body
-        className={inter.className}
-        style={{
-          backgroundColor: "#001F3F",
-          minHeight: "100vh",
-        }}
-      >
+      <body className={inter.className}>
         <AuthProvider>
           <div className="container-fluid py-3">
             <div className="row align-items-center">
@@ -58,8 +53,9 @@ export default function RootLayout({
               </div>
 
               <div className="col-12 col-md-5 col-lg-4">
-                <div className="d-flex justify-content-center justify-content-md-end">
+                <div className="d-flex flex-column align-items-center align-items-md-end gap-2">
                   <UserProfile />
+                  <ThemeToggle />
                 </div>
               </div>
             </div>

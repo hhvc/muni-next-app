@@ -13,6 +13,8 @@ export default function UserProfile() {
   }
 
   return (
-    <UserProfileDropdown user={user} userRole={userRole || "Sin rol"} />
+    <div className="user-profile">
+      <UserProfileDropdown user={user} userRole={userRole || "Sin rol"} />
+    </div>
   );
 }

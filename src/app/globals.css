@@ -1,14 +1,33 @@
+/* =========================
+   Variables de tema global
+   ========================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paleta principal */
+  --background: #001f3f;
+  --foreground: #ffffff;
+
+  /* Colores secundarios útiles */
+  --muted-foreground: #b8c6d9;
+  --border-color: rgba(255, 255, 255, 0.15);
+
+  /* Bootstrap overrides */
+  --bs-body-bg: var(--background);
+  --bs-body-color: var(--foreground);
 }
 
+/* Mantener compatibilidad con prefers-color-scheme
+   (por ahora dark = igual al tema principal) */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #001f3f;
     --foreground: #ededed;
   }
 }
+
+/* =========================
+   Base HTML / Body
+   ========================= */
 
 html,
 body {
@@ -17,12 +36,18 @@ body {
 }
 
 body {
+  background-color: var(--background);
   color: var(--foreground);
-  background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* =========================
+   Reset básico
+   ========================= */
 
 * {
   box-sizing: border-box;
@@ -35,8 +60,287 @@ a {
   text-decoration: none;
 }
 
+/* =========================
+   Bootstrap adjustments
+   ========================= */
+
+/* Cards */
+.card {
+  background-color: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border-color);
+}
+
+/* Card header */
+.card-header {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Card body hereda correctamente */
+.card-body {
+  background-color: transparent;
+}
+
+/* Texto muted visible en fondo oscuro */
+.text-muted {
+  color: var(--muted-foreground) !important;
+}
+
+/* Bordes Bootstrap */
+.border,
+.border-top,
+.border-end,
+.border-bottom,
+.border-start {
+  border-color: var(--border-color) !important;
+}
+
+/* =========================
+   Utilidades opcionales
+   ========================= */
+
+/* Badges legibles */
+.badge {
+  font-weight: 500;
+}
+
+/* Tablas */
+.table {
+  color: var(--foreground);
+}
+
+.table > :not(caption) > * > * {
+  background-color: transparent;
+}
+
+/* Inputs (si los usás en dark) */
+.form-control,
+.form-select {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--foreground);
+  border: 1px solid var(--border-color);
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* =========================
+   Preferencias del sistema
+   ========================= */
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
+}
+/* =========================
+   User profile theme styles
+   ========================= */
+
+/* Dark theme */
+html[data-theme="dark"] .user-profile {
+  color: #ffffff;
+}
+
+/* Light theme */
+html[data-theme="light"] .user-profile {
+  color: #171717;
+}
+
+/* Dropdown items (Bootstrap) */
+html[data-theme="dark"] .user-profile .dropdown-menu {
+  background-color: #001f3f;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+html[data-theme="light"] .user-profile .dropdown-menu {
+  background-color: #ffffff;
+  color: #171717;
+}
+/* =========================
+   UserProfileDropdown
+   ========================= */
+
+/* ---------- Dark ---------- */
+html[data-theme="dark"] .user-profile-dropdown {
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .user-profile-dropdown .user-name {
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .user-profile-dropdown .user-role,
+html[data-theme="dark"] .user-profile-dropdown .user-email {
+  color: #b8c6d9;
+}
+
+html[data-theme="dark"] .user-profile-dropdown .card {
+  background-color: #001f3f;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+html[data-theme="dark"] .user-profile-dropdown hr {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Light ---------- */
+html[data-theme="light"] .user-profile-dropdown {
+  color: #171717;
+}
+
+html[data-theme="light"] .user-profile-dropdown .user-name {
+  color: #171717;
+}
+
+html[data-theme="light"] .user-profile-dropdown .user-role,
+html[data-theme="light"] .user-profile-dropdown .user-email {
+  color: #6c757d;
+}
+
+html[data-theme="light"] .user-profile-dropdown .card {
+  background-color: #ffffff;
+  color: #171717;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+/* =========================
+   CentralDashboard
+   ========================= */
+
+/* ---------- Dark ---------- */
+html[data-theme="dark"] .central-dashboard {
+  background-color: #001f3f;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .dashboard-title {
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .dashboard-subtitle,
+html[data-theme="dark"] .dashboard-section-subtitle {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .dashboard-section-title {
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .dashboard-card {
+  background-color: #ffffff;
+  color: #171717;
+}
+
+html[data-theme="dark"] .dashboard-card-title {
+  color: #171717;
+}
+
+html[data-theme="dark"] .dashboard-card-text {
+  color: #6c757d;
+}
+
+/* ---------- Light ---------- */
+html[data-theme="light"] .central-dashboard {
+  background-color: #f8f9fa;
+  color: #171717;
+}
+
+html[data-theme="light"] .dashboard-title {
+  color: #171717;
+}
+
+html[data-theme="light"] .dashboard-subtitle,
+html[data-theme="light"] .dashboard-section-subtitle {
+  color: #6c757d;
+}
+
+html[data-theme="light"] .dashboard-section-title {
+  color: #171717;
+}
+
+html[data-theme="light"] .dashboard-card {
+  background-color: #ffffff;
+  color: #171717;
+}
+
+html[data-theme="light"] .dashboard-card-title {
+  color: #171717;
+}
+
+html[data-theme="light"] .dashboard-card-text {
+  color: #6c757d;
+}
+
+/* ---------- Íconos ---------- */
+.dashboard-icon {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.dashboard-icon-purple {
+  background-color: #6f42c1;
+}
+
+.dashboard-icon-primary {
+  background-color: var(--bs-primary);
+}
+
+.dashboard-icon-info {
+  background-color: var(--bs-info);
+}
+
+.dashboard-icon-success {
+  background-color: var(--bs-success);
+}
+
+.dashboard-icon-warning {
+  background-color: var(--bs-warning);
+}
+
+/* =========================
+   Colors personalizados
+   ========================= */
+
+/* Color morado para requerimientos */
+.bg-purple {
+  background-color: #6f42c1 !important;
+}
+
+.text-purple {
+  color: #6f42c1 !important;
+}
+
+.border-purple {
+  border-color: #6f42c1 !important;
+}
+
+.alert-purple {
+  background-color: #6f42c1;
+  color: white;
+  border-color: #5a32a3;
+}
+
+/* Badges con color morado */
+.badge.bg-purple {
+  background-color: #6f42c1 !important;
+}
+/* =========================
+   DashboardCard styles
+   ========================= */
+
+.dashboard-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
 }

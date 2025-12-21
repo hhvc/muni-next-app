@@ -32,6 +32,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.googleapis.com",
       },
+      // Agrega drive.google.com específicamente
+      {
+        protocol: "https",
+        hostname: "drive.google.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.drive.google.com",
+      },
     ],
 
     // Tamaños de imagen

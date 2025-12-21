@@ -70,7 +70,7 @@ export default function UserProfileDropdown({
   const specificDashboardRoute = getDashboardRoute(userRole);
 
   return (
-    <div className="position-relative" ref={dropdownRef}>
+    <div className="position-relative user-profile-dropdown" ref={dropdownRef}>
       {/* Botón de imagen del usuario - AHORA MÁS GRANDE */}
       <button
         className="btn p-0 border-0 bg-transparent d-flex align-items-center"
@@ -79,10 +79,10 @@ export default function UserProfileDropdown({
         aria-label="Menú de perfil"
       >
         <div className="text-end me-2 d-none d-sm-block">
-          <div className="text-white fw-semibold small">
+          <div className="user-name fw-semibold small">
             {user.displayName || "Usuario"}
           </div>
-          <div className="text-white-50 small" style={{ fontSize: "0.75rem" }}>
+          <div className="user-role small" style={{ fontSize: "0.75rem" }}>
             {userRole}
           </div>
         </div>
@@ -105,7 +105,7 @@ export default function UserProfileDropdown({
               border: "2px solid white",
             }}
           >
-            <span className="text-white fw-bold fs-5">
+            <span className="user-initial fw-bold fs-5">
               {" "}
               {/* Texto ligeramente más grande */}
               {user.displayName
@@ -150,10 +150,10 @@ export default function UserProfileDropdown({
                 </div>
               )}
 
-              <h6 className="card-title text-dark mb-1 fw-bold">
+              <h6 className="card-title user-name mb-1 fw-bold">
                 {user.displayName || "Usuario"}
               </h6>
-              <p className="text-muted small mb-1">{user.email}</p>
+              <p className="user-email small mb-1">{user.email}</p>
               <span className="badge bg-primary">
                 {userRole || "Sin rol asignado"}
               </span>

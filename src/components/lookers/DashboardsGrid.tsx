@@ -1,4 +1,3 @@
-// src/components/lookers/DashboardsGrid.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -14,7 +13,9 @@ interface DashboardsGridProps {
   showInactive?: boolean;
 }
 
-// Componente contenedor para organizar múltiples DashboardCards
+/**
+ * Contenedor responsivo para grilla de tarjetas
+ */
 function DashboardsGridContainer({
   children,
   cols = 3,
@@ -41,6 +42,9 @@ export default function DashboardsGrid({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /**
+   * Normaliza allowedRoles desde Firestore
+   */
   const normalizeAllowedRoles = useCallback(
     (roles: unknown): string[] | null => {
       if (!roles) return null;
@@ -66,6 +70,9 @@ export default function DashboardsGrid({
     []
   );
 
+  /**
+   * Convierte distintos formatos de timestamp a Date
+   */
   const toSafeDate = useCallback((timestamp: unknown): Date | null => {
     if (!timestamp) return null;
 
@@ -136,13 +143,8 @@ export default function DashboardsGrid({
             order: data.order,
           };
 
-          if (!showInactive && !dashboard.isActive) {
-            return;
-          }
-
-          if (category && dashboard.category !== category) {
-            return;
-          }
+          if (!showInactive && !dashboard.isActive) return;
+          if (category && dashboard.category !== category) return;
 
           const shouldShowDashboard = () => {
             if (
@@ -153,9 +155,9 @@ export default function DashboardsGrid({
             }
 
             if (currentUserRoles.length > 0) {
-              return currentUserRoles.some((role: string) => {
-                return dashboard.allowedRoles?.includes(role) || false;
-              });
+              return currentUserRoles.some((role: string) =>
+                dashboard.allowedRoles?.includes(role)
+              );
             }
 
             return false;
@@ -174,15 +176,9 @@ export default function DashboardsGrid({
             return orderA - orderB;
           }
 
-          const titleA = a.title || "";
-          const titleB = b.title || "";
-          return titleA.localeCompare(titleB);
+          return (a.title || "").localeCompare(b.title || "");
         });
 
-        console.log(
-          `✅ Tableros filtrados: ${dashboardsData.length}`,
-          dashboardsData
-        );
         setDashboards(dashboardsData);
         setError("");
       } catch (err) {
@@ -195,8 +191,11 @@ export default function DashboardsGrid({
             "Error de configuración en la base de datos. Contacta al administrador."
           );
         } else {
-          const errorMessage = firebaseError.message || "Error desconocido";
-          setError(`No se pudieron cargar los tableros: ${errorMessage}`);
+          setError(
+            `No se pudieron cargar los tableros: ${
+              firebaseError.message || "Error desconocido"
+            }`
+          );
         }
       } finally {
         setLoading(false);
@@ -215,6 +214,10 @@ export default function DashboardsGrid({
     getOrderValue,
   ]);
 
+  /* =========================
+     Estados de carga / error
+     ========================= */
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center my-5">
@@ -225,11 +228,11 @@ export default function DashboardsGrid({
 
   if (error) {
     return (
-      <div className="alert alert-warning" role="alert">
+      <div className="alert dashboard-alert" role="alert">
         <h5 className="alert-heading">⚠️ Error</h5>
         <p className="mb-0">{error}</p>
         <button
-          className="btn btn-sm btn-outline-primary mt-2"
+          className="btn btn-sm btn-outline-theme mt-2"
           onClick={() => window.location.reload()}
         >
           Reintentar
@@ -246,21 +249,23 @@ export default function DashboardsGrid({
             xmlns="http://www.w3.org/2000/svg"
             width="64"
             height="64"
-            fill="#6c757d"
-            className="bi bi-bar-chart-line"
+            fill="currentColor"
+            className="bi bi-bar-chart-line text-muted"
             viewBox="0 0 16 16"
           >
-            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h2V2h-2v12zm-3 0V7H7v7h2zm-5 0v-3H2v3h2z" />
+            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
           </svg>
         </div>
-        <h4 className="text-muted">No hay tableros disponibles</h4>
-        <p className="text-muted">
+
+        <h4 className="empty-state-title">No hay tableros disponibles</h4>
+        <p className="empty-state-text">
           {category
             ? `No se encontraron tableros en la categoría "${category}"`
             : "Aún no se han registrado tableros."}
         </p>
+
         <button
-          className="btn btn-outline-info"
+          className="btn btn-outline-theme"
           onClick={() => window.location.reload()}
         >
           Recargar
@@ -269,16 +274,22 @@ export default function DashboardsGrid({
     );
   }
 
+  /* =========================
+     Render principal
+     ========================= */
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h3>Tableros de Looker Studio</h3>
+          <h3 className="dashboards-title">Tableros de Looker Studio</h3>
           {category && (
             <span className="badge bg-info">Categoría: {category}</span>
           )}
         </div>
-        <small className="text-muted">{dashboards.length} tablero(s)</small>
+        <small className="dashboards-count">
+          {dashboards.length} tablero(s)
+        </small>
       </div>
 
       <DashboardsGridContainer cols={3}>
@@ -293,7 +304,7 @@ export default function DashboardsGrid({
             target="_blank"
             badge={dashboard.category || undefined}
             badgeColor="info"
-            showThumbnail={true}
+            showThumbnail
           />
         ))}
       </DashboardsGridContainer>

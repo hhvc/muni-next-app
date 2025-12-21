@@ -3,6 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import DashboardCard from "@/components/dashboards/DashboardCard";
 
 export default function CentralDashboard() {
   const router = useRouter();
@@ -30,19 +31,16 @@ export default function CentralDashboard() {
   const hasAdminAccess = ["admin", "root", "data"].includes(userRole || "");
 
   return (
-    <div
-      className="min-vh-100 py-4"
-      style={{ backgroundColor: "#001F3F", color: "white" }}
-    >
+    <div className="min-vh-100 py-4 central-dashboard">
       {/* Contenido principal */}
       <div className="container">
         {/* Header */}
         <div className="row mb-4">
           <div className="col">
-            <h1 className="display-4 fw-bold text-center text-white mb-2">
+            <h1 className="display-4 fw-bold text-center dashboard-title mb-2">
               Ciencia de Datos y Comportamiento
             </h1>
-            <p className="text-center text-light lead">
+            <p className="text-center dashboard-subtitle lead">
               Plataforma centralizada para la gestión de datos y comportamiento
               organizacional
             </p>
@@ -54,10 +52,13 @@ export default function CentralDashboard() {
           <div className="col-12">
             <div className="row">
               <div className="col-12 mb-4 text-center">
-                <h2 className="fw-bold text-white mb-3">
+                <h2 className="fw-bold dashboard-section-title mb-3">
                   Aplicativos del Área
                 </h2>
-                <p className="text-light mx-auto" style={{ maxWidth: "600px" }}>
+                <p
+                  className="dashboard-section-subtitle mx-auto"
+                  style={{ maxWidth: "600px" }}
+                >
                   Accede a las herramientas y sistemas disponibles según tu rol
                   y permisos asignados
                 </p>
@@ -65,106 +66,66 @@ export default function CentralDashboard() {
 
               {/* Tarjeta 1: Requerimientos de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-purple text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{
-                        width: "70px",
-                        height: "70px",
-                        backgroundColor: "#6f42c1", // Color púrpura para destacar
-                      }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📨</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Requerimientos de Datos
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Solicita nuevos reportes, análisis o modificaciones al
-                      área de Datos
-                    </p>
+                <DashboardCard
+                  icon="📨"
+                  iconVariant="purple"
+                  title="Requerimientos de Datos"
+                  description="Solicita nuevos reportes, análisis o modificaciones al área de Datos"
+                  action={
                     <button
                       className="btn btn-outline-purple btn-sm"
                       onClick={() => router.push("/dashboard/requirements")}
-                      style={{
-                        borderColor: "#6f42c1",
-                        color: "#6f42c1",
-                      }}
                     >
                       Acceder
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               </div>
 
               {/* Tarjeta 2: Tableros de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-primary text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📊</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Tableros de Datos
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Reportes dinámicos e interactivos con visualización de
-                      métricas.
-                    </p>
+                <DashboardCard
+                  icon="📊"
+                  iconVariant="primary"
+                  title="Tableros de Datos"
+                  description="Reportes dinámicos e interactivos con visualización de métricas."
+                  action={
                     <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => router.push("/dashboard/looker")}
                     >
                       Acceder
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               </div>
 
               {/* Tarjeta 3: Formularios */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-info text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📋</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">Formularios</h5>
-                    <p className="card-text small text-muted mb-3">
-                      Formularios en uso para la recolección de datos.
-                    </p>
+                <DashboardCard
+                  icon="📋"
+                  iconVariant="info"
+                  title="Formularios"
+                  description="Formularios en uso para la recolección de datos."
+                  action={
                     <button
                       className="btn btn-outline-info btn-sm"
                       onClick={() => router.push("/dashboard/forms")}
                     >
                       Acceder
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               </div>
 
               {/* Tarjeta 4: Sistemas de Gestión (Inactivo por ahora) */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>🔧</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Sistemas de Gestión
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Aplicativos integrados a medida.
-                    </p>
+                <DashboardCard
+                  icon="🔧"
+                  iconVariant="success"
+                  title="Sistemas de Gestión"
+                  description="Aplicativos integrados a medida."
+                  action={
                     <button
                       className="btn btn-outline-success btn-sm"
                       disabled
@@ -172,28 +133,19 @@ export default function CentralDashboard() {
                     >
                       Próximamente
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               </div>
 
               {/* Tarjeta 5: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-warning text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>🖥️</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Panel de Administración Datos
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Configuración del sistema, usuarios y permisos (solo
-                      administradores)
-                    </p>
-                    {hasAdminAccess ? (
+                <DashboardCard
+                  icon="🖥️"
+                  iconVariant="warning"
+                  title="Panel de Administración Datos"
+                  description="Configuración del sistema, usuarios y permisos (solo administradores)"
+                  action={
+                    hasAdminAccess ? (
                       <button
                         className="btn btn-outline-warning btn-sm"
                         onClick={() => router.push(specificDashboardRoute)}
@@ -208,106 +160,74 @@ export default function CentralDashboard() {
                       >
                         No disponible
                       </button>
-                    )}
-                  </div>
-                </div>
+                    )
+                  }
+                />
               </div>
 
               {/* Campos comentados - Mantenidos como estaban */}
               {/* 
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>👥</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Gestión de Personal
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Administración de colaboradores y recursos humanos
-                    </p>
-                    <button className="btn btn-outline-success btn-sm">
-                      Acceder
-                    </button>
-                  </div>
-                </div>
-              </div>
+ <div className="col-md-6 col-lg-4 mb-4">
+  <DashboardCard
+    icon="👥"
+    iconVariant="success"
+    title="Gestión de Personal"
+    description="Administración de colaboradores y recursos humanos"
+    action={
+      <button className="btn btn-outline-success btn-sm">
+        Acceder
+      </button>
+    }
+  />
+</div>
               */}
 
               {/* 
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light transition-all hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-warning text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>📈</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Dashboard Ejecutivo
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Indicadores clave de rendimiento y métricas de negocio
-                    </p>
-                    <button className="btn btn-outline-warning btn-sm">
-                      Acceder
-                    </button>
-                  </div>
-                </div>
-              </div>
+ <div className="col-md-6 col-lg-4 mb-4">
+  <DashboardCard
+    icon="📈"
+    iconVariant="warning"
+    title="Dashboard Ejecutivo"
+    description="Indicadores clave de rendimiento y métricas de negocio"
+    action={
+      <button className="btn btn-outline-warning btn-sm">
+        Acceder
+      </button>
+    }
+  />
+</div>
               */}
 
               {/* 
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-secondary text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>🔐</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Administración
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Configuración y gestión del sistema y usuarios
-                    </p>
-                    <button className="btn btn-outline-secondary btn-sm">
-                      Acceder
-                    </button>
-                  </div>
-                </div>
-              </div>
+ <div className="col-md-6 col-lg-4 mb-4">
+  <DashboardCard
+    icon="🔐"
+    iconVariant="secondary"
+    title="Administración"
+    description="Configuración y gestión del sistema y usuarios"
+    action={
+      <button className="btn btn-outline-secondary btn-sm">
+        Acceder
+      </button>
+    }
+  />
+</div>
               */}
 
               {/* 
-              <div className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm bg-light hover-shadow">
-                  <div className="card-body text-center p-4">
-                    <div
-                      className="bg-dark text-white rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                      style={{ width: "70px", height: "70px" }}
-                    >
-                      <span style={{ fontSize: "1.8rem" }}>🛠️</span>
-                    </div>
-                    <h5 className="card-title text-dark mb-2">
-                      Soporte Técnico
-                    </h5>
-                    <p className="card-text small text-muted mb-3">
-                      Sistema de tickets y asistencia técnica
-                    </p>
-                    <button className="btn btn-outline-dark btn-sm">
-                      Acceder
-                    </button>
-                  </div>
-                </div>
-              </div>
+ <div className="col-md-6 col-lg-4 mb-4">
+  <DashboardCard
+    icon="🛠️"
+    iconVariant="dark"
+    title="Soporte Técnico"
+    description="Sistema de tickets y asistencia técnica"
+    action={
+      <button className="btn btn-outline-dark btn-sm">
+        Acceder
+      </button>
+    }
+  />
+</div>
               */}
             </div>
           </div>
