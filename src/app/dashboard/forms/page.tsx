@@ -12,12 +12,10 @@ export default function FormsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Verificar permisos - asumiendo que los formularios son para ciertos roles
   const allowedRoles = ["admin", "hr", "root", "data", "collaborator"];
   const hasAccess = userRoles?.some((role) => allowedRoles.includes(role));
 
   useEffect(() => {
-    // Simular carga inicial
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 500);
@@ -39,9 +37,7 @@ export default function FormsPage() {
     );
   }
 
-  if (!user) {
-    return null; // El useEffect redirigirá
-  }
+  if (!user) return null;
 
   if (!hasAccess) {
     return (
@@ -61,34 +57,31 @@ export default function FormsPage() {
   }
 
   return (
-    <div className="container-fluid py-4">
-      <div className="row mb-4">
-        <div className="col">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h1 className="h2 fw-bold text-white">Formularios</h1>
-              <p className="text-white mb-0">
-                Gestiona y accede a todos los formularios disponibles
-              </p>
-            </div>
-            <div>
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => router.push("/")}
-              >
-                <i className="bi bi-arrow-left me-2"></i>
-                Volver
-              </button>
-            </div>
+    <>
+      {/* ================= HEADER (centrado) ================= */}
+      <div className="container-xxl py-4">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+          <div>
+            <h1 className="h2 fw-bold dashboard-title">Formularios</h1>
+            <p className="dashboard-subtitle mb-0">
+              Gestiona y accede a todos los formularios disponibles
+            </p>
           </div>
+
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() => router.push("/")}
+          >
+            <i className="bi bi-arrow-left me-2"></i>
+            Volver
+          </button>
         </div>
       </div>
 
-      <div className="row">
-        <div className="col-12">
-          <FormsGrid />
-        </div>
+      {/* ================= GRID (FULL WIDTH REAL) ================= */}
+      <div className="px-3 px-md-4 px-xxl-5">
+        <FormsGrid />
       </div>
-    </div>
+    </>
   );
 }

@@ -1,38 +1,33 @@
 /* =========================================================
-   THEME VARIABLES
+   THEME VARIABLES (Single source of truth)
    ========================================================= */
 
-/* ---------- Default (Dark) ---------- */
-:root {
-  /* Core colors */
+/* ---------- Dark (default) ---------- */
+html[data-theme="dark"] {
   --background: #001f3f;
   --foreground: #f8f9fa;
 
   --muted-foreground: #b8c6d9;
   --border-color: rgba(255, 255, 255, 0.15);
+  --surface: rgba(255, 255, 255, 0.05);
 
   /* Bootstrap integration */
   --bs-body-bg: var(--background);
   --bs-body-color: var(--foreground);
 }
 
-/* ---------- Light Theme ---------- */
+/* ---------- Light ---------- */
 html[data-theme="light"] {
   --background: #f8f9fa;
-  --foreground: #171717;
+  --foreground: #001f3f;
 
   --muted-foreground: #6c757d;
   --border-color: rgba(0, 0, 0, 0.15);
+  --surface: #ffffff;
 
+  /* Bootstrap integration */
   --bs-body-bg: var(--background);
   --bs-body-color: var(--foreground);
-}
-
-/* System preference hint */
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }
 
 /* =========================================================
@@ -72,13 +67,13 @@ a {
 
 /* Cards */
 .card {
-  background-color: var(--background);
+  background-color: var(--surface);
   color: var(--foreground);
   border: 1px solid var(--border-color);
 }
 
 .card-header {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--surface);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -112,86 +107,47 @@ a {
 /* Forms */
 .form-control,
 .form-select {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--surface);
   color: var(--foreground);
   border: 1px solid var(--border-color);
 }
 
 .form-control::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted-foreground);
 }
 
-/* Badges */
-.badge {
-  font-weight: 500;
+/* Dropdowns */
+.dropdown-menu {
+  background-color: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-color);
 }
 
 /* =========================================================
    USER PROFILE
    ========================================================= */
 
-html[data-theme="dark"] .user-profile {
-  color: #ffffff;
+.user-profile,
+.user-profile-dropdown {
+  color: var(--foreground);
 }
 
-html[data-theme="light"] .user-profile {
-  color: #171717;
+.user-profile-dropdown .user-name {
+  color: var(--foreground);
 }
 
-html[data-theme="dark"] .user-profile .dropdown-menu {
-  background-color: #001f3f;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-html[data-theme="light"] .user-profile .dropdown-menu {
-  background-color: #ffffff;
-  color: #171717;
-}
-
-/* ---------- UserProfileDropdown ---------- */
-
-html[data-theme="dark"] .user-profile-dropdown {
-  color: #ffffff;
-}
-
-html[data-theme="dark"] .user-profile-dropdown .user-name {
-  color: #ffffff;
-}
-
-html[data-theme="dark"] .user-profile-dropdown .user-role,
-html[data-theme="dark"] .user-profile-dropdown .user-email {
+.user-profile-dropdown .user-role,
+.user-profile-dropdown .user-email {
   color: var(--muted-foreground);
 }
 
-html[data-theme="dark"] .user-profile-dropdown .card {
-  background-color: #001f3f;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+.user-profile-dropdown .card {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
 }
 
-html[data-theme="dark"] .user-profile-dropdown hr {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Light */
-html[data-theme="light"] .user-profile-dropdown {
-  color: #171717;
-}
-
-html[data-theme="light"] .user-profile-dropdown .user-name {
-  color: #171717;
-}
-
-html[data-theme="light"] .user-profile-dropdown .user-role,
-html[data-theme="light"] .user-profile-dropdown .user-email {
-  color: #6c757d;
-}
-
-html[data-theme="light"] .user-profile-dropdown .card {
-  background-color: #ffffff;
-  color: #171717;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+.user-profile-dropdown hr {
+  border-color: var(--border-color);
 }
 
 /* =========================================================
@@ -214,10 +170,13 @@ html[data-theme="light"] .user-profile-dropdown .card {
   color: var(--muted-foreground);
 }
 
-/* Cards */
+/* =========================================================
+   DASHBOARD CARDS
+   ========================================================= */
+
 .dashboard-card {
-  background-color: #ffffff;
-  color: #171717;
+  background-color: var(--surface);
+  color: var(--foreground);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -227,14 +186,22 @@ html[data-theme="light"] .user-profile-dropdown .card {
 }
 
 .dashboard-card-title {
-  color: #171717;
+  color: var(--foreground);
 }
 
 .dashboard-card-text {
-  color: #6c757d;
+  color: var(--muted-foreground);
 }
 
-/* Icons */
+/* Thumbnail placeholder */
+.placeholder-bg {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.1));
+}
+
+/* =========================================================
+   ICONS
+   ========================================================= */
+
 .dashboard-icon {
   width: 70px;
   height: 70px;

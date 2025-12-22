@@ -1,5 +1,7 @@
+/* src/components/lookers/DashboardCard.tsx */
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -33,9 +35,7 @@ interface DashboardCardProps {
 const convertGoogleDriveUrl = (url: string): string => {
   if (!url) return "";
 
-  if (url.includes("uc?export=view")) {
-    return url;
-  }
+  if (url.includes("uc?export=view")) return url;
 
   if (url.includes("drive.google.com/file/d/")) {
     const match = url.match(/\/d\/([^\/]+)/);
@@ -46,6 +46,10 @@ const convertGoogleDriveUrl = (url: string): string => {
 
   return url;
 };
+
+/* =========================
+   Component
+   ========================= */
 
 export default function DashboardCard({
   title,
@@ -64,7 +68,9 @@ export default function DashboardCard({
     ? convertGoogleDriveUrl(thumbnailUrl)
     : null;
 
-  const badgeColors = {
+  const [imageError, setImageError] = useState(false);
+
+  const badgeColors: Record<string, string> = {
     primary: "bg-primary text-white",
     secondary: "bg-secondary text-white",
     success: "bg-success text-white",
@@ -72,6 +78,21 @@ export default function DashboardCard({
     warning: "bg-warning text-dark",
     info: "bg-info text-white",
   };
+
+  const ThumbnailFallback = () => (
+    <div className="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="64"
+        height="64"
+        fill="currentColor"
+        className="bi bi-bar-chart-line text-muted"
+        viewBox="0 0 16 16"
+      >
+        <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
+      </svg>
+    </div>
+  );
 
   return (
     <div className="card h-100 border-0 shadow-sm dashboard-card">
@@ -88,56 +109,19 @@ export default function DashboardCard({
             className="card-img-top position-relative"
             style={{ height: "180px", overflow: "hidden" }}
           >
-            {processedThumbnailUrl ? (
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  height: "100%",
-                }}
-              >
-                <Image
-                  src={processedThumbnailUrl}
-                  alt={title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  style={{ objectFit: "cover" }}
-                  onError={(e) => {
-                    // Fallback visual si falla la imagen
-                    const img = e.target as HTMLImageElement;
-                    img.style.display = "none";
-
-                    const parent = img.parentElement;
-                    if (parent) {
-                      parent.innerHTML = `
-                        <div class="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
-                          <svg xmlns="http://www.w3.org/2000/svg"
-                            width="64"
-                            height="64"
-                            fill="currentColor"
-                            class="bi bi-bar-chart-line text-muted"
-                            viewBox="0 0 16 16">
-                            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z"/>
-                          </svg>
-                        </div>
-                      `;
-                    }
-                  }}
-                />
-              </div>
+            {!processedThumbnailUrl || imageError ? (
+              <ThumbnailFallback />
             ) : (
-              <div className="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="64"
-                  height="64"
-                  fill="currentColor"
-                  className="bi bi-bar-chart-line text-muted"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
-                </svg>
-              </div>
+              <Image
+                src={processedThumbnailUrl}
+                alt={title}
+                fill
+                sizes="(max-width: 768px) 100vw,
+                       (max-width: 1200px) 50vw,
+                       33vw"
+                style={{ objectFit: "cover" }}
+                onError={() => setImageError(true)}
+              />
             )}
           </div>
         )}
@@ -158,7 +142,7 @@ export default function DashboardCard({
               )}
             </div>
 
-            <div className="ms-2 flex-shrink-0">
+            <div className="ms-2 flex-shrink-0 text-muted">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="20"
