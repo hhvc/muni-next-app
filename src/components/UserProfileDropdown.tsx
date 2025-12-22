@@ -174,7 +174,7 @@ export default function UserProfileDropdown({
                 Editar Perfil
               </button>
 
-              <button
+              {/* <button
                 className="btn btn-primary btn-sm d-flex align-items-center justify-content-center"
                 onClick={() => {
                   router.push(specificDashboardRoute);
@@ -183,7 +183,7 @@ export default function UserProfileDropdown({
               >
                 <span className="me-2">📊</span>
                 Mi Dashboard
-              </button>
+              </button> */}
 
               <button
                 className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center mt-1"
