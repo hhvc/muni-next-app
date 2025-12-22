@@ -1,4 +1,4 @@
-// src/components/requirements/RequirementForm.tsx
+/* src/components/requirements/RequirementForm.tsx */
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -18,8 +18,15 @@ const requirementTypes = [
   { value: "otros", label: "Otros" },
 ];
 
-export default function RequirementForm() {
+interface RequirementFormProps {
+  horizontal?: boolean;
+}
+
+export default function RequirementForm({
+  horizontal = false,
+}: RequirementFormProps) {
   const { user } = useAuth();
+
   const [tipo, setTipo] = useState<RequirementType>("reporte_estatico");
   const [detalle, setDetalle] = useState("");
   const [prioridad, setPrioridad] = useState<Priority>("media");
@@ -29,6 +36,7 @@ export default function RequirementForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
     if (!user) {
       setError("Debes iniciar sesión para enviar un requerimiento.");
       return;
@@ -65,7 +73,6 @@ export default function RequirementForm() {
       setTipo("reporte_estatico");
       setPrioridad("media");
 
-      // Ocultar mensaje de éxito después de 5 segundos
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       console.error("Error al guardar el requerimiento:", err);
@@ -82,6 +89,7 @@ export default function RequirementForm() {
       <div className="card-header bg-primary text-white">
         <h5 className="mb-0">Nuevo Requerimiento de Datos</h5>
       </div>
+
       <div className="card-body">
         {success && (
           <div
@@ -95,7 +103,7 @@ export default function RequirementForm() {
               type="button"
               className="btn-close"
               onClick={() => setSuccess(false)}
-            ></button>
+            />
           </div>
         )}
 
@@ -110,67 +118,74 @@ export default function RequirementForm() {
               type="button"
               className="btn-close"
               onClick={() => setError("")}
-            ></button>
+            />
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="tipo" className="form-label">
-              Tipo de requerimiento
-            </label>
-            <select
-              id="tipo"
-              className="form-select"
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value as RequirementType)}
-              required
-            >
-              {requirementTypes.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {" "}
+          <div className={`row ${horizontal ? "g-3" : ""}`}>
+            {/* Tipo */}
+            <div className={horizontal ? "col-12 col-lg-4" : "mb-3"}>
+              <label htmlFor="tipo" className="form-label">
+                Tipo de requerimiento
+              </label>
+              <select
+                id="tipo"
+                className="form-select themed-select"
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as RequirementType)}
+                required
+              >
+                {requirementTypes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="mb-3">
-            <label htmlFor="prioridad" className="form-label">
-              Prioridad
-            </label>
-            <select
-              id="prioridad"
-              className="form-select"
-              value={prioridad}
-              onChange={(e) => setPrioridad(e.target.value as Priority)}
-            >
-              <option value="baja">Baja</option>
-              <option value="media">Media</option>
-              <option value="alta">Alta</option>
-              <option value="urgente">Urgente</option>
-            </select>
-          </div>
+            {/* Prioridad */}
+            <div className={horizontal ? "col-12 col-lg-2" : "mb-3"}>
+              <label htmlFor="prioridad" className="form-label">
+                Prioridad
+              </label>
+              <select
+                id="prioridad"
+                className="form-select themed-select"
+                value={prioridad}
+                onChange={(e) => setPrioridad(e.target.value as Priority)}
+              >
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
 
-          <div className="mb-3">
-            <label htmlFor="detalle" className="form-label">
-              Detalle del requerimiento
-            </label>
-            <textarea
-              id="detalle"
-              className="form-control"
-              rows={5}
-              value={detalle}
-              onChange={(e) => setDetalle(e.target.value)}
-              placeholder="Describe con el mayor detalle posible lo que necesitas. Incluye fechas, métricas, público objetivo, etc."
-              required
-            />
-            <div className="form-text">
-              Sé lo más específico posible. Incluye plazos, formato deseado, y
-              cualquier información relevante.
+            {/* Detalle */}
+            <div className={horizontal ? "col-12 col-lg-6" : "mb-3"}>
+              <label htmlFor="detalle" className="form-label">
+                Detalle del requerimiento
+              </label>
+              <textarea
+                id="detalle"
+                className="form-control"
+                rows={horizontal ? 3 : 5}
+                value={detalle}
+                onChange={(e) => setDetalle(e.target.value)}
+                placeholder="Describe con el mayor detalle posible lo que necesitas. Incluye fechas, métricas, público objetivo, etc."
+                required
+              />
+              {!horizontal && (
+                <div className="form-text">
+                  Sé lo más específico posible. Incluye plazos, formato deseado,
+                  y cualquier información relevante.
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+          <div className="d-flex justify-content-end mt-3">
             <button
               type="submit"
               className="btn btn-primary"

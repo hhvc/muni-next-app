@@ -105,15 +105,27 @@ a {
 }
 
 /* Forms */
-.form-control,
-.form-select {
+.form-control {
   background-color: var(--surface);
   color: var(--foreground);
   border: 1px solid var(--border-color);
 }
 
+/* ⚠️ select SIN estilos visuales */
+.form-select {
+  border: 1px solid var(--border-color);
+}
+
 .form-control::placeholder {
   color: var(--muted-foreground);
+}
+
+html[data-theme="dark"] .themed-select {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] .themed-select {
+  color-scheme: light;
 }
 
 /* Dropdowns */
@@ -123,6 +135,17 @@ a {
   border: 1px solid var(--border-color);
 }
 
+/* =========================================================
+   Native select – Chrome fix
+   ========================================================= */
+
+html[data-theme="dark"] .themed-select {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] .themed-select {
+  color-scheme: light;
+}
 /* =========================================================
    USER PROFILE
    ========================================================= */

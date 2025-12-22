@@ -40,57 +40,47 @@ export default function RequirementsPage() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
-    <div className="container-fluid py-4 text-white">
+    <div className="container-xxl py-4">
+      {/* Header */}
       <div className="row mb-4">
-        <div className="col">
-          <div className="d-flex justify-content-between align-items-center">
+        <div className="col-12">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
             <div>
-              <h1 className="h2 fw-bold">Requerimientos de Datos</h1>
-              <p className="mb-0">
+              <h1 className="h2 fw-bold dashboard-title">
+                Requerimientos de Datos
+              </h1>
+              <p className="dashboard-subtitle mb-0">
                 {isAdmin
                   ? "Gestiona todos los requerimientos del área de datos"
                   : "Solicita nuevos reportes, análisis o formularios al área de datos"}
               </p>
             </div>
-            <div>
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => router.push("/")}
-              >
-                <i className="bi bi-arrow-left me-2"></i>
-                Volver
-              </button>
-            </div>
+
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => router.push("/")}
+            >
+              <i className="bi bi-arrow-left me-2"></i>
+              Volver
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="row">
-        <div className="col-lg-8 mb-4">
-          <RequirementsList />
+      {/* Formulario */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <RequirementForm horizontal />
         </div>
-        <div className="col-lg-4 mb-4">
-          <RequirementForm />
+      </div>
 
-          {isAdmin && (
-            <div className="card mt-4 shadow-sm">
-              <div className="card-header bg-info text-white">
-                <h6 className="mb-0">Estadísticas</h6>
-              </div>
-              <div className="card-body">
-                <p className="card-text small">
-                  <i className="bi bi-info-circle me-2"></i>
-                  Aquí podrás ver métricas de los requerimientos (pendiente de
-                  desarrollo).
-                </p>
-              </div>
-            </div>
-          )}
+      {/* Lista */}
+      <div className="row">
+        <div className="col-12">
+          <RequirementsList />
         </div>
       </div>
     </div>
