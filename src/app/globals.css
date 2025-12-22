@@ -1,33 +1,49 @@
-/* =========================
-   Variables de tema global
-   ========================= */
+/* =========================================================
+   THEME VARIABLES
+   ========================================================= */
 
+/* ---------- Default (Dark) ---------- */
 :root {
-  /* Paleta principal */
+  /* Core colors */
   --background: #001f3f;
-  --foreground: #ffffff;
+  --foreground: #f8f9fa;
 
-  /* Colores secundarios útiles */
   --muted-foreground: #b8c6d9;
   --border-color: rgba(255, 255, 255, 0.15);
 
-  /* Bootstrap overrides */
+  /* Bootstrap integration */
   --bs-body-bg: var(--background);
   --bs-body-color: var(--foreground);
 }
 
-/* Mantener compatibilidad con prefers-color-scheme
-   (por ahora dark = igual al tema principal) */
+/* ---------- Light Theme ---------- */
+html[data-theme="light"] {
+  --background: #f8f9fa;
+  --foreground: #171717;
+
+  --muted-foreground: #6c757d;
+  --border-color: rgba(0, 0, 0, 0.15);
+
+  --bs-body-bg: var(--background);
+  --bs-body-color: var(--foreground);
+}
+
+/* System preference hint */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #001f3f;
-    --foreground: #ededed;
+  html {
+    color-scheme: dark;
   }
 }
 
-/* =========================
-   Base HTML / Body
-   ========================= */
+/* =========================================================
+   BASE / RESET
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html,
 body {
@@ -36,23 +52,13 @@ body {
 }
 
 body {
+  min-height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  min-height: 100vh;
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* =========================
-   Reset básico
-   ========================= */
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
 a {
@@ -60,9 +66,9 @@ a {
   text-decoration: none;
 }
 
-/* =========================
-   Bootstrap adjustments
-   ========================= */
+/* =========================================================
+   BOOTSTRAP NORMALIZATION
+   ========================================================= */
 
 /* Cards */
 .card {
@@ -71,23 +77,21 @@ a {
   border: 1px solid var(--border-color);
 }
 
-/* Card header */
 .card-header {
   background-color: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Card body hereda correctamente */
 .card-body {
   background-color: transparent;
 }
 
-/* Texto muted visible en fondo oscuro */
+/* Text */
 .text-muted {
   color: var(--muted-foreground) !important;
 }
 
-/* Bordes Bootstrap */
+/* Borders */
 .border,
 .border-top,
 .border-end,
@@ -96,16 +100,7 @@ a {
   border-color: var(--border-color) !important;
 }
 
-/* =========================
-   Utilidades opcionales
-   ========================= */
-
-/* Badges legibles */
-.badge {
-  font-weight: 500;
-}
-
-/* Tablas */
+/* Tables */
 .table {
   color: var(--foreground);
 }
@@ -114,7 +109,7 @@ a {
   background-color: transparent;
 }
 
-/* Inputs (si los usás en dark) */
+/* Forms */
 .form-control,
 .form-select {
   background-color: rgba(255, 255, 255, 0.05);
@@ -126,30 +121,23 @@ a {
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* =========================
-   Preferencias del sistema
-   ========================= */
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Badges */
+.badge {
+  font-weight: 500;
 }
-/* =========================
-   User profile theme styles
-   ========================= */
 
-/* Dark theme */
+/* =========================================================
+   USER PROFILE
+   ========================================================= */
+
 html[data-theme="dark"] .user-profile {
   color: #ffffff;
 }
 
-/* Light theme */
 html[data-theme="light"] .user-profile {
   color: #171717;
 }
 
-/* Dropdown items (Bootstrap) */
 html[data-theme="dark"] .user-profile .dropdown-menu {
   background-color: #001f3f;
   color: #ffffff;
@@ -160,11 +148,9 @@ html[data-theme="light"] .user-profile .dropdown-menu {
   background-color: #ffffff;
   color: #171717;
 }
-/* =========================
-   UserProfileDropdown
-   ========================= */
 
-/* ---------- Dark ---------- */
+/* ---------- UserProfileDropdown ---------- */
+
 html[data-theme="dark"] .user-profile-dropdown {
   color: #ffffff;
 }
@@ -175,7 +161,7 @@ html[data-theme="dark"] .user-profile-dropdown .user-name {
 
 html[data-theme="dark"] .user-profile-dropdown .user-role,
 html[data-theme="dark"] .user-profile-dropdown .user-email {
-  color: #b8c6d9;
+  color: var(--muted-foreground);
 }
 
 html[data-theme="dark"] .user-profile-dropdown .card {
@@ -188,7 +174,7 @@ html[data-theme="dark"] .user-profile-dropdown hr {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* ---------- Light ---------- */
+/* Light */
 html[data-theme="light"] .user-profile-dropdown {
   color: #171717;
 }
@@ -207,75 +193,48 @@ html[data-theme="light"] .user-profile-dropdown .card {
   color: #171717;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
-/* =========================
-   CentralDashboard
-   ========================= */
 
-/* ---------- Dark ---------- */
-html[data-theme="dark"] .central-dashboard {
-  background-color: #001f3f;
-  color: #ffffff;
+/* =========================================================
+   CENTRAL DASHBOARD
+   ========================================================= */
+
+.central-dashboard {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
-html[data-theme="dark"] .dashboard-title {
-  color: #ffffff;
+/* Titles */
+.dashboard-title,
+.dashboard-section-title {
+  color: var(--foreground);
 }
 
-html[data-theme="dark"] .dashboard-subtitle,
-html[data-theme="dark"] .dashboard-section-subtitle {
-  color: #cbd5e1;
+.dashboard-subtitle,
+.dashboard-section-subtitle {
+  color: var(--muted-foreground);
 }
 
-html[data-theme="dark"] .dashboard-section-title {
-  color: #ffffff;
-}
-
-html[data-theme="dark"] .dashboard-card {
+/* Cards */
+.dashboard-card {
   background-color: #ffffff;
   color: #171717;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-html[data-theme="dark"] .dashboard-card-title {
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dashboard-card-title {
   color: #171717;
 }
 
-html[data-theme="dark"] .dashboard-card-text {
+.dashboard-card-text {
   color: #6c757d;
 }
 
-/* ---------- Light ---------- */
-html[data-theme="light"] .central-dashboard {
-  background-color: #f8f9fa;
-  color: #171717;
-}
-
-html[data-theme="light"] .dashboard-title {
-  color: #171717;
-}
-
-html[data-theme="light"] .dashboard-subtitle,
-html[data-theme="light"] .dashboard-section-subtitle {
-  color: #6c757d;
-}
-
-html[data-theme="light"] .dashboard-section-title {
-  color: #171717;
-}
-
-html[data-theme="light"] .dashboard-card {
-  background-color: #ffffff;
-  color: #171717;
-}
-
-html[data-theme="light"] .dashboard-card-title {
-  color: #171717;
-}
-
-html[data-theme="light"] .dashboard-card-text {
-  color: #6c757d;
-}
-
-/* ---------- Íconos ---------- */
+/* Icons */
 .dashboard-icon {
   width: 70px;
   height: 70px;
@@ -305,11 +264,10 @@ html[data-theme="light"] .dashboard-card-text {
   background-color: var(--bs-warning);
 }
 
-/* =========================
-   Colors personalizados
-   ========================= */
+/* =========================================================
+   CUSTOM COLORS
+   ========================================================= */
 
-/* Color morado para requerimientos */
 .bg-purple {
   background-color: #6f42c1 !important;
 }
@@ -324,23 +282,10 @@ html[data-theme="light"] .dashboard-card-text {
 
 .alert-purple {
   background-color: #6f42c1;
-  color: white;
+  color: #ffffff;
   border-color: #5a32a3;
 }
 
-/* Badges con color morado */
 .badge.bg-purple {
   background-color: #6f42c1 !important;
-}
-/* =========================
-   DashboardCard styles
-   ========================= */
-
-.dashboard-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.dashboard-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
 }

@@ -1,3 +1,4 @@
+// src/components/lookers/DashboardsGrid.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -15,22 +16,16 @@ interface DashboardsGridProps {
 
 /**
  * Contenedor responsivo para grilla de tarjetas
+ * - Mobile: 1 columna
+ * - Desktop común: 2 columnas
+ * - Pantallas XL: 3 columnas
  */
-function DashboardsGridContainer({
-  children,
-  cols = 3,
-}: {
-  children: React.ReactNode;
-  cols?: 1 | 2 | 3 | 4;
-}) {
-  const gridClasses = {
-    1: "row-cols-1",
-    2: "row-cols-1 row-cols-md-2",
-    3: "row-cols-1 row-cols-md-2 row-cols-lg-3",
-    4: "row-cols-1 row-cols-md-2 row-cols-lg-4",
-  };
-
-  return <div className={`row g-4 ${gridClasses[cols]}`}>{children}</div>;
+function DashboardsGridContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="row g-4 row-cols-1 row-cols-md-2 row-cols-xl-3">
+      {children}
+    </div>
+  );
 }
 
 export default function DashboardsGrid({
@@ -109,6 +104,7 @@ export default function DashboardsGrid({
 
       try {
         setLoading(true);
+
         const dashboardsRef = collection(db, "dashboards");
         const querySnapshot = await getDocs(dashboardsRef);
         const dashboardsData: LookerDashboardMetadata[] = [];
@@ -172,10 +168,7 @@ export default function DashboardsGrid({
           const orderA = getOrderValue(a.order);
           const orderB = getOrderValue(b.order);
 
-          if (orderA !== orderB) {
-            return orderA - orderB;
-          }
-
+          if (orderA !== orderB) return orderA - orderB;
           return (a.title || "").localeCompare(b.title || "");
         });
 
@@ -244,26 +237,12 @@ export default function DashboardsGrid({
   if (dashboards.length === 0) {
     return (
       <div className="text-center py-5">
-        <div className="mb-3">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="64"
-            height="64"
-            fill="currentColor"
-            className="bi bi-bar-chart-line text-muted"
-            viewBox="0 0 16 16"
-          >
-            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
-          </svg>
-        </div>
-
         <h4 className="empty-state-title">No hay tableros disponibles</h4>
         <p className="empty-state-text">
           {category
             ? `No se encontraron tableros en la categoría "${category}"`
             : "Aún no se han registrado tableros."}
         </p>
-
         <button
           className="btn btn-outline-theme"
           onClick={() => window.location.reload()}
@@ -292,20 +271,21 @@ export default function DashboardsGrid({
         </small>
       </div>
 
-      <DashboardsGridContainer cols={3}>
+      <DashboardsGridContainer>
         {dashboards.map((dashboard) => (
-          <DashboardCard
-            key={dashboard.id}
-            title={dashboard.title}
-            description={dashboard.description || undefined}
-            dashboardUrl={dashboard.dashboardUrl}
-            embedUrl={dashboard.embedUrl || undefined}
-            thumbnailUrl={dashboard.thumbnailUrl || undefined}
-            target="_blank"
-            badge={dashboard.category || undefined}
-            badgeColor="info"
-            showThumbnail
-          />
+          <div className="col" key={dashboard.id}>
+            <DashboardCard
+              title={dashboard.title}
+              description={dashboard.description || undefined}
+              dashboardUrl={dashboard.dashboardUrl}
+              embedUrl={dashboard.embedUrl || undefined}
+              thumbnailUrl={dashboard.thumbnailUrl || undefined}
+              target="_blank"
+              badge={dashboard.category || undefined}
+              badgeColor="info"
+              showThumbnail
+            />
+          </div>
         ))}
       </DashboardsGridContainer>
     </div>
