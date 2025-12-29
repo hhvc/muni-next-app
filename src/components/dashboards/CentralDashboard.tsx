@@ -137,7 +137,37 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 5: Panel de Administración Datos (con ícono mejorado) */}
+              {/* Tarjeta 5: Repositorio de Documentos */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <DashboardCard
+                  icon="📚"
+                  iconVariant="secondary"
+                  title="Repositorio de Documentos"
+                  description="Accede y gestiona documentos compartidos del área de datos"
+                  action={
+                    ["admin", "hr", "root", "data", "collaborator"].includes(
+                      userRole || ""
+                    ) ? (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => router.push("/dashboard/documents")}
+                      >
+                        Acceder
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        disabled
+                        title="No tienes permisos para acceder al repositorio"
+                      >
+                        No disponible
+                      </button>
+                    )
+                  }
+                />
+              </div>
+
+              {/* Tarjeta 6: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🖥️"
