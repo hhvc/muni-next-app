@@ -273,7 +273,7 @@ export default function DocumentsManager() {
                 {/* Estadísticas */}
                 <div className="row mb-4">
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">{documents.length}</h3>
                         <p className="text-muted mb-0">Total</p>
@@ -281,7 +281,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {documents.filter((d) => d.isActive).length}
@@ -291,7 +291,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {
@@ -307,7 +307,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {
@@ -346,7 +346,7 @@ export default function DocumentsManager() {
                 {/* Tabla detallada (opcional) */}
                 {canEditDocuments && (
                   <div className="card border-0 shadow-sm mt-4">
-                    <div className="card-header bg-light">
+                    <div className="card-header themed-surface">
                       <h6 className="mb-0">
                         <i className="bi bi-list-ul me-2"></i>
                         Lista Detallada
@@ -385,7 +385,7 @@ export default function DocumentsManager() {
                                   </div>
                                 </td>
                                 <td>
-                                  <span className="badge bg-light text-dark">
+                                  <span className="badge themed-surface text-dark">
                                     {doc.fileType
                                       ?.split("/")
                                       .pop()

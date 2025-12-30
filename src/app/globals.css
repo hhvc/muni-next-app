@@ -254,6 +254,10 @@ html[data-theme="light"] .themed-select {
   background-color: var(--bs-warning);
 }
 
+.dashboard-icon-secondary {
+  background-color: var(--bs-secondary);
+}
+
 /* =========================================================
    CUSTOM COLORS
    ========================================================= */
@@ -279,3 +283,44 @@ html[data-theme="light"] .themed-select {
 .badge.bg-purple {
   background-color: #6f42c1 !important;
 }
+
+/* =========================================================
+Estilos CSS para hover effects (usado en tarjetas de Central Dashboard)
+========================================================= */
+
+.hover-shadow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s ease;
+}
+.transition-all {
+  transition: all 0.3s ease;
+}
+.bg-purple {
+  background-color: #6f42c1;
+}
+.btn-outline-purple {
+  color: #6f42c1;
+  border-color: #6f42c1;
+}
+.btn-outline-purple:hover {
+  color: white;
+  background-color: #6f42c1;
+  border-color: #6f42c1;
+}
+
+/* =========================================================
+Clases para forzar estilos por tema dark o light
+========================================================= */
+.themed {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.themed-surface {
+  background-color: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-color);
+}
+
+

@@ -263,30 +263,6 @@ export default function CentralDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Estilos CSS para hover effects */}
-      <style jsx>{`
-        .hover-shadow:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
-          transition: all 0.3s ease;
-        }
-        .transition-all {
-          transition: all 0.3s ease;
-        }
-        .bg-purple {
-          background-color: #6f42c1;
-        }
-        .btn-outline-purple {
-          color: #6f42c1;
-          border-color: #6f42c1;
-        }
-        .btn-outline-purple:hover {
-          color: white;
-          background-color: #6f42c1;
-          border-color: #6f42c1;
-        }
-      `}</style>
     </div>
   );
 }

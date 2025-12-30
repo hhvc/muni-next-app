@@ -332,7 +332,7 @@ export default function LookersManager() {
                 {/* Resumen de estadísticas */}
                 <div className="row mb-4">
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0  themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">{dashboards.length}</h3>
                         <p className="text-muted mb-0">Total</p>
@@ -340,7 +340,7 @@ export default function LookersManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0  themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {dashboards.filter((d) => d.isActive).length}
@@ -350,7 +350,7 @@ export default function LookersManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0  themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {
@@ -368,7 +368,7 @@ export default function LookersManager() {
                     </div>
                   </div>
                   <div className="col-md-3">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
                           {
@@ -618,7 +618,7 @@ export default function LookersManager() {
                       </table>
                     </div>
                   </div>
-                  <div className="card-footer bg-light">
+                  <div className="card-footer  themed-surface">
                     <small className="text-muted">
                       Mostrando {dashboards.length} tablero(s)
                     </small>
