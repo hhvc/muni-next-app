@@ -1,4 +1,4 @@
-/* src/components/documents/DocumentsManager.tsx - VERSIÓN CORREGIDA */
+/* src/components/documents/DocumentsManager.tsx - VERSIÓN CORREGIDA PARA FILTRAR PDFs */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -106,6 +106,30 @@ export default function DocumentsManager() {
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments, refreshKey]);
+
+  // Contar PDFs - FUNCIÓN CORREGIDA
+  const countPDFs = useCallback(() => {
+    return documents.filter((doc) => {
+      if (!doc.fileType) return false;
+      // Convertir a minúsculas para hacer la comparación insensible a mayúsculas/minúsculas
+      const fileTypeLower = doc.fileType.toLowerCase();
+      // Verificar si contiene "pdf" en cualquier parte del string
+      return fileTypeLower.includes("pdf") || fileTypeLower === "pdf";
+    }).length;
+  }, [documents]);
+
+  // Contar documentos por tipo - FUNCIÓN AUXILIAR
+  const countByFileType = useCallback(
+    (type: string) => {
+      return documents.filter((doc) => {
+        if (!doc.fileType) return false;
+        const fileTypeLower = doc.fileType.toLowerCase();
+        const searchType = type.toLowerCase();
+        return fileTypeLower.includes(searchType);
+      }).length;
+    },
+    [documents]
+  );
 
   // Manejar éxito en creación/edición
   const handleDocumentCreated = () => {
@@ -270,7 +294,7 @@ export default function DocumentsManager() {
               </div>
             ) : (
               <div>
-                {/* Estadísticas */}
+                {/* Estadísticas - CORREGIDAS */}
                 <div className="row mb-4">
                   <div className="col-md-3">
                     <div className="card border-0 themed-surface">
@@ -310,12 +334,63 @@ export default function DocumentsManager() {
                     <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h3 className="mb-0">
-                          {
-                            documents.filter((d) => d.fileType?.includes("pdf"))
-                              .length
-                          }
+                          {countPDFs()} {/* Usa la función corregida */}
                         </h3>
                         <p className="text-muted mb-0">PDFs</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estadísticas adicionales de tipos de archivo */}
+                <div className="row mb-4">
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">{countByFileType("word")}</h5>
+                        <p className="text-muted mb-0 small">Word</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">{countByFileType("excel")}</h5>
+                        <p className="text-muted mb-0 small">Excel</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">
+                          {countByFileType("powerpoint")}
+                        </h5>
+                        <p className="text-muted mb-0 small">PowerPoint</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">{countByFileType("image")}</h5>
+                        <p className="text-muted mb-0 small">Imágenes</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">{countByFileType("text")}</h5>
+                        <p className="text-muted mb-0 small">Texto</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card border-0 bg-light">
+                      <div className="card-body text-center">
+                        <h5 className="mb-0">{countByFileType("zip")}</h5>
+                        <p className="text-muted mb-0 small">Zip</p>
                       </div>
                     </div>
                   </div>
@@ -386,10 +461,7 @@ export default function DocumentsManager() {
                                 </td>
                                 <td>
                                   <span className="badge themed-surface text-dark">
-                                    {doc.fileType
-                                      ?.split("/")
-                                      .pop()
-                                      ?.toUpperCase() || "N/A"}
+                                    {doc.fileType || "N/A"}
                                   </span>
                                 </td>
                                 <td>{doc.creator}</td>

@@ -327,7 +327,7 @@ export default function RequirementDetail({
       <div className="row">
         <div className="col-md-8">
           <div className="card mb-4">
-            <div className="card-header bg-light">
+            <div className="card-header themed-surface">
               <h6 className="mb-0">Información del Requerimiento</h6>
             </div>
             <div className="card-body">
@@ -335,7 +335,7 @@ export default function RequirementDetail({
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label fw-bold">Tipo</label>
-                    <div className="border rounded p-2 bg-light">
+                    <div className="border rounded p-2 themed-surface">
                       {getRequirementTypeLabel(requirement.tipo)}
                     </div>
                   </div>
@@ -431,7 +431,7 @@ export default function RequirementDetail({
                     ) : (
                       <div>
                         {asignadoA ? (
-                          <div className="border rounded p-2 bg-light">
+                          <div className="border rounded p-2 themed-surface">
                             <strong>{asignadoA.nombre}</strong>
                             <div className="text-muted small">
                               {asignadoA.email}
@@ -450,7 +450,7 @@ export default function RequirementDetail({
                 <label className="form-label fw-bold">
                   Detalle del requerimiento
                 </label>
-                <div className="border rounded p-3 bg-light">
+                <div className="border rounded p-3 themed-surface">
                   {requirement.detalle}
                 </div>
               </div>
@@ -467,7 +467,7 @@ export default function RequirementDetail({
                   />
                 ) : (
                   <div
-                    className="border rounded p-3 bg-light"
+                    className="border rounded p-3 themed-surface"
                     style={{ minHeight: "100px" }}
                   >
                     {observaciones || "Sin observaciones"}
@@ -502,7 +502,7 @@ export default function RequirementDetail({
                 <label className="form-label fw-bold">
                   Información del solicitante
                 </label>
-                <div className="border rounded p-3 bg-light">
+                <div className="border rounded p-3 themed-surface">
                   <div>
                     <strong>Nombre:</strong> {requirement.solicitante.nombre}
                   </div>
@@ -527,7 +527,7 @@ export default function RequirementDetail({
 
         <div className="col-md-4">
           <div className="card mb-4">
-            <div className="card-header bg-light">
+            <div className="card-header themed-surface">
               <h6 className="mb-0">Historial de Cambios</h6>
             </div>
             <div
