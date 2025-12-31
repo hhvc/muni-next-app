@@ -1,4 +1,4 @@
-// src/components/requirements/RequirementsList.tsx
+// src/components/requirements/RequirementsList.tsx - VERSIÓN SIMPLIFICADA
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -15,26 +15,17 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import {
-  Requirement,
+  RequirementData,
   RequirementStatus,
-  RequirementType,
   Priority,
+  DestinoPrincipal,
+  NaturalezaPedido,
+  Asignacion,
 } from "@/types/requirementTypes";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import RequirementDetail from "./RequirementDetail";
 
-// Definimos requirementTypes aquí también para este componente
-const requirementTypes = [
-  { value: "reporte_estatico", label: "Reporte estático" },
-  { value: "analisis_datos", label: "Análisis de datos" },
-  { value: "nuevo_reporte_dinamico", label: "Nuevo reporte dinámico" },
-  {
-    value: "nuevo_formulario",
-    label: "Nuevo formulario para captura de datos",
-  },
-  { value: "otros", label: "Otros" },
-] as const;
-
+// Opciones para los selects
 const statusOptions: {
   value: RequirementStatus;
   label: string;
@@ -44,7 +35,34 @@ const statusOptions: {
   { value: "en_revision", label: "En revisión", color: "info" },
   { value: "en_progreso", label: "En progreso", color: "warning" },
   { value: "completado", label: "Completado", color: "success" },
+  { value: "suspendido", label: "Suspendido", color: "warning" },
   { value: "rechazado", label: "Rechazado", color: "danger" },
+];
+
+const priorityOptions: { value: Priority; label: string; color: string }[] = [
+  { value: "no_asignada", label: "No asignada", color: "secondary" },
+  { value: "baja", label: "Baja", color: "success" },
+  { value: "media", label: "Media", color: "info" },
+  { value: "alta", label: "Alta", color: "warning" },
+  { value: "urgente", label: "Urgente", color: "danger" },
+];
+
+// Opciones para los nuevos campos
+const destinosPrincipales = [
+  { value: "informacion", label: "Información" },
+  { value: "reporte", label: "Reporte" },
+  { value: "formulario", label: "Formulario" },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "app", label: "App" },
+  { value: "otro", label: "Otro" },
+];
+
+const naturalezasPedido = [
+  { value: "informacion_estatica", label: "Información estática" },
+  { value: "nuevo_desarrollo", label: "Nuevo desarrollo" },
+  { value: "correccion_errores", label: "Corrección de errores" },
+  { value: "mejora", label: "Mejora" },
+  { value: "no_aplica", label: "No aplica" },
 ];
 
 interface User {
@@ -54,9 +72,33 @@ interface User {
   roles?: string[];
 }
 
+// Función para formatear fecha
+const formatDate = (date: any) => {
+  if (!date) return "N/A";
+  const dateObj = date?.toDate?.() || new Date(date);
+  return dateObj.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// Función para obtener etiqueta de opción
+const getOptionLabel = (
+  value: string,
+  options: Array<{ value: string; label: string }>
+) => {
+  const option = options.find((opt) => opt.value === value);
+  return option ? option.label : value;
+};
+
 export default function RequirementsList() {
   const { user, userRoles } = useAuth();
-  const [requirements, setRequirements] = useState<Requirement[]>([]);
+  const [requirements, setRequirements] = useState<
+    (RequirementData & { id: string })[]
+  >([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -66,8 +108,9 @@ export default function RequirementsList() {
     string | null
   >(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedRequirement, setSelectedRequirement] =
-    useState<Requirement | null>(null);
+  const [selectedRequirement, setSelectedRequirement] = useState<
+    (RequirementData & { id: string }) | null
+  >(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const isAdmin = useMemo(
@@ -78,7 +121,7 @@ export default function RequirementsList() {
   );
 
   // ✅ Función para abrir el detalle del requerimiento
-  const handleViewDetail = (requirement: Requirement) => {
+  const handleViewDetail = (requirement: RequirementData & { id: string }) => {
     setSelectedRequirement(requirement);
     setShowDetailModal(true);
   };
@@ -141,22 +184,64 @@ export default function RequirementsList() {
       }
 
       const querySnapshot = await getDocs(q);
-      const requirementsData: Requirement[] = [];
+      const requirementsData: (RequirementData & { id: string })[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        requirementsData.push({
+
+        // Construir el objeto RequirementData con los nuevos campos
+        const requirement: RequirementData & { id: string } = {
           id: doc.id,
-          tipo: data.tipo as RequirementType,
+          // Datos del solicitante (automáticos)
+          solicitante: data.solicitante || { uid: "", email: "", nombre: "" },
+          fechaCarga: data.fechaCarga?.toDate() || new Date(),
+          createdBy: data.createdBy || user?.uid || "",
+
+          // Tipo de Requerimiento (Nuevos campos)
+          destinoPrincipal:
+            (data.destinoPrincipal as DestinoPrincipal) || "informacion",
+          naturalezaPedido:
+            (data.naturalezaPedido as NaturalezaPedido) ||
+            "informacion_estatica",
+          appReferencia: data.appReferencia,
+          dashboardReferencia: data.dashboardReferencia,
+          dashboardTitulo: data.dashboardTitulo,
+
+          // Pedido
+          tituloBreve: data.tituloBreve || "",
+          descripcionProblema: data.descripcionProblema || "",
+          expectativaResolucion: data.expectativaResolucion || "",
+
+          // Prioridad
+          importancia: data.importancia || "media",
+          urgencia: data.urgencia || "media",
+          fechaLimite: data.fechaLimite?.toDate(),
+
+          // Detalles adicionales
+          usuariosQueUsaran: data.usuariosQueUsaran,
+          datosFuentesNecesarios: data.datosFuentesNecesarios,
+          metricasKPI: data.metricasKPI,
+          observaciones: data.observaciones,
+
+          // Sistema de seguimiento
+          estado: (data.estado as RequirementStatus) || "inicial",
+          prioridad: (data.prioridad as Priority) || "no_asignada",
+          asignadoA: data.asignadoA || [],
+          comentarios: data.comentarios,
+
+          // Historial de estados
+          historialEstados: data.historialEstados || [],
+
+          // Campos originales (mantenidos para compatibilidad)
+          tipo: data.tipo,
           detalle: data.detalle,
-          solicitante: data.solicitante,
-          fechaCarga: data.fechaCarga?.toDate() || null,
-          fechaActualizacion: data.fechaActualizacion?.toDate() || null,
-          estado: data.estado as RequirementStatus,
-          asignadoA: data.asignadoA || null,
-          comentarios: data.comentarios || "",
-          prioridad: (data.prioridad as Priority) || "media",
-        });
+
+          // Metadatos
+          updatedAt: data.updatedAt?.toDate(),
+          isActive: data.isActive !== false,
+        };
+
+        requirementsData.push(requirement);
       });
 
       setRequirements(requirementsData);
@@ -187,14 +272,14 @@ export default function RequirementsList() {
       const requirementRef = doc(db, "requirements", requirementId);
       await updateDoc(requirementRef, {
         estado: newStatus,
-        fechaActualizacion: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
 
       // Actualizar estado local
       setRequirements((prev) =>
         prev.map((req) =>
           req.id === requirementId
-            ? { ...req, estado: newStatus, fechaActualizacion: new Date() }
+            ? { ...req, estado: newStatus, updatedAt: new Date() }
             : req
         )
       );
@@ -214,14 +299,27 @@ export default function RequirementsList() {
       const userToAssign = users.find((u) => u.uid === selectedUserId);
       if (!userToAssign) throw new Error("Usuario no encontrado");
 
+      const nuevaAsignacion: Asignacion = {
+        usuarioId: userToAssign.uid,
+        usuarioNombre: userToAssign.nombre,
+        fechaAsignacion: new Date(),
+        rol: "responsable",
+      };
+
       const requirementRef = doc(db, "requirements", requirementId);
+
+      // Obtener las asignaciones actuales y agregar la nueva
+      const currentRequirement = requirements.find(
+        (r) => r.id === requirementId
+      );
+      const nuevasAsignaciones = [
+        ...(currentRequirement?.asignadoA || []),
+        nuevaAsignacion,
+      ];
+
       await updateDoc(requirementRef, {
-        asignadoA: {
-          uid: userToAssign.uid,
-          email: userToAssign.email,
-          nombre: userToAssign.nombre,
-        },
-        fechaActualizacion: Timestamp.now(),
+        asignadoA: nuevasAsignaciones,
+        updatedAt: Timestamp.now(),
       });
 
       // Actualizar estado local
@@ -230,12 +328,8 @@ export default function RequirementsList() {
           req.id === requirementId
             ? {
                 ...req,
-                asignadoA: {
-                  uid: userToAssign.uid,
-                  email: userToAssign.email,
-                  nombre: userToAssign.nombre,
-                },
-                fechaActualizacion: new Date(),
+                asignadoA: nuevasAsignaciones,
+                updatedAt: new Date(),
               }
             : req
         )
@@ -252,22 +346,33 @@ export default function RequirementsList() {
     }
   };
 
-  const handleUnassignUser = async (requirementId: string) => {
+  const handleUnassignUser = async (
+    requirementId: string,
+    asignacionIndex: number
+  ) => {
     if (!isAdmin) return;
 
     try {
       setUpdatingId(requirementId);
       const requirementRef = doc(db, "requirements", requirementId);
+
+      // Obtener las asignaciones actuales y eliminar la especificada
+      const currentRequirement = requirements.find(
+        (r) => r.id === requirementId
+      );
+      const nuevasAsignaciones = [...(currentRequirement?.asignadoA || [])];
+      nuevasAsignaciones.splice(asignacionIndex, 1);
+
       await updateDoc(requirementRef, {
-        asignadoA: null,
-        fechaActualizacion: Timestamp.now(),
+        asignadoA: nuevasAsignaciones,
+        updatedAt: Timestamp.now(),
       });
 
       // Actualizar estado local
       setRequirements((prev) =>
         prev.map((req) =>
           req.id === requirementId
-            ? { ...req, asignadoA: null, fechaActualizacion: new Date() }
+            ? { ...req, asignadoA: nuevasAsignaciones, updatedAt: new Date() }
             : req
         )
       );
@@ -279,20 +384,12 @@ export default function RequirementsList() {
     }
   };
 
-  const getRequirementTypeLabel = (type: string) => {
-    const option = requirementTypes.find((opt) => opt.value === type);
-    return option ? option.label : type;
+  const getDestinoPrincipalLabel = (destino: DestinoPrincipal) => {
+    return getOptionLabel(destino, destinosPrincipales);
   };
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return "N/A";
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const getNaturalezaPedidoLabel = (naturaleza: NaturalezaPedido) => {
+    return getOptionLabel(naturaleza, naturalezasPedido);
   };
 
   if (loading) {
@@ -339,8 +436,9 @@ export default function RequirementsList() {
           <table className="table table-hover">
             <thead>
               <tr>
-                <th>Tipo</th>
-                <th>Detalle</th>
+                <th>Título breve</th>
+                <th>Destino</th>
+                <th>Naturaleza</th>
                 <th>Prioridad</th>
                 <th>Estado</th>
                 <th>Fecha</th>
@@ -353,29 +451,39 @@ export default function RequirementsList() {
               {requirements.map((req) => (
                 <tr key={req.id}>
                   <td>
-                    <span className="badge bg-info">
-                      {getRequirementTypeLabel(req.tipo)}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="small">{req.detalle}</div>
-                    {req.comentarios && (
-                      <div className="text-muted small mt-1">
-                        <strong>Comentarios:</strong> {req.comentarios}
+                    <div className="fw-semibold">
+                      {req.tituloBreve || "Sin título"}
+                    </div>
+                    {req.descripcionProblema && (
+                      <div
+                        className="small text-muted mt-1 text-truncate"
+                        style={{ maxWidth: "200px" }}
+                      >
+                        {req.descripcionProblema}
                       </div>
                     )}
                   </td>
                   <td>
+                    <span className="badge bg-info">
+                      {getDestinoPrincipalLabel(req.destinoPrincipal)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="badge bg-light text-dark">
+                      {getNaturalezaPedidoLabel(req.naturalezaPedido)}
+                    </span>
+                  </td>
+                  <td>
                     <span
                       className={`badge bg-${
-                        req.prioridad === "alta"
-                          ? "danger"
-                          : req.prioridad === "media"
-                          ? "warning"
-                          : "secondary"
+                        priorityOptions.find((p) => p.value === req.prioridad)
+                          ?.color
                       }`}
                     >
-                      {req.prioridad}
+                      {
+                        priorityOptions.find((p) => p.value === req.prioridad)
+                          ?.label
+                      }
                     </span>
                   </td>
                   <td>
@@ -418,6 +526,12 @@ export default function RequirementsList() {
                     <small className="text-muted">
                       {formatDate(req.fechaCarga)}
                     </small>
+                    {req.fechaLimite && (
+                      <div className="small">
+                        <span className="text-danger">Vence: </span>
+                        {formatDate(req.fechaLimite)}
+                      </div>
+                    )}
                   </td>
                   {isAdmin && (
                     <td>
@@ -431,18 +545,38 @@ export default function RequirementsList() {
                   )}
                   {isAdmin && (
                     <td>
-                      {req.asignadoA ? (
-                        <div className="d-flex align-items-center">
-                          <span className="badge bg-light text-dark">
-                            {req.asignadoA.nombre}
-                          </span>
+                      {req.asignadoA && req.asignadoA.length > 0 ? (
+                        <div>
+                          {req.asignadoA.map((asignacion, index) => (
+                            <div
+                              key={index}
+                              className="d-flex align-items-center mb-1"
+                            >
+                              <span className="badge bg-light text-dark">
+                                {asignacion.usuarioNombre}
+                              </span>
+                              <button
+                                className="btn btn-sm btn-link text-danger ms-2"
+                                onClick={() =>
+                                  req.id && handleUnassignUser(req.id, index)
+                                }
+                                disabled={updatingId === req.id}
+                                title="Desasignar"
+                              >
+                                <i className="bi bi-x-circle"></i>
+                              </button>
+                            </div>
+                          ))}
                           <button
-                            className="btn btn-sm btn-link text-danger ms-2"
-                            onClick={() => req.id && handleUnassignUser(req.id)}
+                            className="btn btn-sm btn-outline-primary mt-1"
+                            onClick={() =>
+                              req.id && setAssigningRequirementId(req.id)
+                            }
                             disabled={updatingId === req.id}
-                            title="Desasignar"
+                            title="Agregar asignación"
                           >
-                            <i className="bi bi-x-circle"></i>
+                            <i className="bi bi-person-plus me-1"></i>
+                            Agregar
                           </button>
                         </div>
                       ) : (
@@ -581,9 +715,9 @@ export default function RequirementsList() {
           style={{ background: "rgba(0,0,0,0.5)" }}
           tabIndex={-1}
         >
-          <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div className="modal-content">
-              <div className="modal-header bg-purple text-white">
+              <div className="modal-header bg-primary text-white">
                 <h5 className="modal-title">
                   <i className="bi bi-clipboard-check me-2"></i>
                   Detalle del Requerimiento

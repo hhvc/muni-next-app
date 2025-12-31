@@ -1,4 +1,4 @@
-// src/components/requirements/RequirementDetail.tsx
+// src/components/requirements/RequirementDetail.tsx - VERSIÓN REFACTORIZADA
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,58 +10,77 @@ import {
   Timestamp,
   collection,
   addDoc,
-  getDoc,
   query,
   where,
   orderBy,
-  getDocs, // ✅ Agregar getDocs
+  getDocs,
+  getDoc,
 } from "firebase/firestore";
 import {
-  Requirement,
+  RequirementData,
   RequirementStatus,
-  RequirementType,
   Priority,
 } from "@/types/requirementTypes";
+import Seguimiento from "./Seguimiento";
+import HistorialCambios from "./HistorialCambios";
 
 interface RequirementDetailProps {
-  requirement: Requirement;
+  requirement: RequirementData & { id: string };
   onClose: () => void;
   onUpdate: () => void;
 }
 
-const statusOptions: {
-  value: RequirementStatus;
-  label: string;
-  color: string;
-}[] = [
-  { value: "inicial", label: "Inicial", color: "secondary" },
-  { value: "en_revision", label: "En revisión", color: "info" },
-  { value: "en_progreso", label: "En progreso", color: "warning" },
-  { value: "completado", label: "Completado", color: "success" },
-  { value: "rechazado", label: "Rechazado", color: "danger" },
+// Opciones para los selects (mantenemos solo las que se usan en este componente)
+const destinosPrincipales = [
+  { value: "informacion", label: "Información" },
+  { value: "reporte", label: "Reporte" },
+  { value: "formulario", label: "Formulario" },
+  { value: "dashboard", label: "Dashboard (tablero)" },
+  { value: "app", label: "App" },
+  { value: "otro", label: "Otro" },
 ];
 
-const priorityOptions: { value: Priority; label: string; color: string }[] = [
-  { value: "baja", label: "Baja", color: "secondary" },
-  { value: "media", label: "Media", color: "info" },
-  { value: "alta", label: "Alta", color: "warning" },
-  { value: "urgente", label: "Urgente", color: "danger" },
+const naturalezasPedido = [
+  { value: "informacion_estatica", label: "Información estática" },
+  { value: "nuevo_desarrollo", label: "Nuevo desarrollo" },
+  { value: "correccion_errores", label: "Corrección de errores" },
+  { value: "mejora", label: "Mejora" },
+  { value: "no_aplica", label: "No aplica" },
 ];
 
-// ✅ Función auxiliar para obtener etiqueta del tipo de requerimiento
-const getRequirementTypeLabel = (type: string) => {
-  const types = [
-    { value: "reporte_estatico", label: "Reporte estático" },
-    { value: "analisis_datos", label: "Análisis de datos" },
-    { value: "nuevo_reporte_dinamico", label: "Nuevo reporte dinámico" },
-    {
-      value: "nuevo_formulario",
-      label: "Nuevo formulario para captura de datos",
-    },
-    { value: "otros", label: "Otros" },
-  ];
-  const option = types.find((opt) => opt.value === type);
-  return option ? option.label : type;
+const appsReferencia = [
+  { value: "rrhh", label: "RRHH" },
+  { value: "d_track", label: "D-Track" },
+  { value: "monitoreo", label: "Monitoreo" },
+  { value: "no_aplica", label: "No aplica" },
+];
+
+const importancias = [
+  { value: "alta", label: "Alta" },
+  { value: "media", label: "Media" },
+  { value: "baja", label: "Baja" },
+];
+
+// Función para obtener etiqueta de opción
+const getOptionLabel = (
+  value: string,
+  options: Array<{ value: string; label: string }>
+) => {
+  const option = options.find((opt) => opt.value === value);
+  return option ? option.label : value;
+};
+
+// Función para formatear fecha
+const formatDate = (date: any) => {
+  if (!date) return "N/A";
+  const dateObj = date?.toDate?.() || new Date(date);
+  return dateObj.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export default function RequirementDetail({
@@ -71,11 +90,13 @@ export default function RequirementDetail({
 }: RequirementDetailProps) {
   const { user } = useAuth();
   const [editMode, setEditMode] = useState(false);
-  const [estado, setEstado] = useState<RequirementStatus>(requirement.estado);
-  const [prioridad, setPrioridad] = useState<Priority>(
-    requirement.prioridad || "media"
+  const [estado, setEstado] = useState<RequirementStatus>(
+    requirement.estado || "inicial"
   );
-  const [asignadoA, setAsignadoA] = useState(requirement.asignadoA);
+  const [prioridad, setPrioridad] = useState<Priority>(
+    requirement.prioridad || "no_asignada"
+  );
+  const [asignadoA, setAsignadoA] = useState(requirement.asignadoA || []);
   const [observaciones, setObservaciones] = useState(
     requirement.comentarios || ""
   );
@@ -84,7 +105,9 @@ export default function RequirementDetail({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [users, setUsers] = useState<any[]>([]);
-  const [historial, setHistorial] = useState<any[]>([]);
+  const [dashboardInfo, setDashboardInfo] = useState<{ title: string } | null>(
+    null
+  );
 
   // Cargar usuarios para asignación
   useEffect(() => {
@@ -116,35 +139,29 @@ export default function RequirementDetail({
     loadUsers();
   }, []);
 
-  // Cargar historial de cambios
+  // Cargar información del dashboard si hay referencia
   useEffect(() => {
-    const loadHistorial = async () => {
-      if (!requirement.id) return;
-
-      try {
-        const historialRef = collection(db, "requirementHistory");
-        const q = query(
-          historialRef,
-          where("requirementId", "==", requirement.id),
-          orderBy("timestamp", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const historialData: any[] = [];
-
-        querySnapshot.forEach((doc) => {
-          historialData.push({ id: doc.id, ...doc.data() });
-        });
-
-        setHistorial(historialData);
-      } catch (err) {
-        console.error("Error al cargar historial:", err);
+    const loadDashboardInfo = async () => {
+      if (requirement.dashboardReferencia) {
+        try {
+          const dashboardDoc = await getDoc(
+            doc(db, "dashboards", requirement.dashboardReferencia)
+          );
+          if (dashboardDoc.exists()) {
+            setDashboardInfo({
+              title: dashboardDoc.data().title || "Sin título",
+            });
+          }
+        } catch (err) {
+          console.error("Error al cargar dashboard:", err);
+        }
       }
     };
 
-    loadHistorial();
-  }, [requirement.id]);
+    loadDashboardInfo();
+  }, [requirement.dashboardReferencia]);
 
-  // Guardar cambios
+  // Guardar cambios en el seguimiento
   const handleSave = async () => {
     if (!requirement.id || !user) return;
 
@@ -165,7 +182,7 @@ export default function RequirementDetail({
         cambios: {},
       };
 
-      // Verificar cambios
+      // Verificar cambios en estado
       if (estado !== requirement.estado) {
         cambios.estado = estado;
         historialCambios.cambios.estado = {
@@ -174,6 +191,7 @@ export default function RequirementDetail({
         };
       }
 
+      // Verificar cambios en prioridad
       if (prioridad !== requirement.prioridad) {
         cambios.prioridad = prioridad;
         historialCambios.cambios.prioridad = {
@@ -182,22 +200,20 @@ export default function RequirementDetail({
         };
       }
 
-      const asignadoAnterior = requirement.asignadoA || null;
-      const asignadoNuevo = asignadoA || null;
-
-      // Comparar objetos de asignación
-      const asignadoAnteriorId = asignadoAnterior?.uid || null;
-      const asignadoNuevoId = asignadoNuevo?.uid || null;
-
-      if (asignadoAnteriorId !== asignadoNuevoId) {
-        cambios.asignadoA = asignadoNuevo;
+      // Verificar cambios en asignaciones
+      if (
+        JSON.stringify(asignadoA) !==
+        JSON.stringify(requirement.asignadoA || [])
+      ) {
+        cambios.asignadoA = asignadoA;
         historialCambios.cambios.asignadoA = {
-          anterior: asignadoAnterior?.nombre || "No asignado",
-          nuevo: asignadoNuevo?.nombre || "No asignado",
+          anterior: requirement.asignadoA || [],
+          nuevo: asignadoA,
         };
       }
 
-      if (observaciones !== requirement.comentarios) {
+      // Verificar cambios en observaciones
+      if (observaciones !== (requirement.comentarios || "")) {
         cambios.comentarios = observaciones;
         historialCambios.cambios.comentarios = {
           anterior: requirement.comentarios || "",
@@ -207,10 +223,27 @@ export default function RequirementDetail({
 
       // Si hay cambios, guardarlos
       if (Object.keys(cambios).length > 0) {
-        cambios.fechaActualizacion = Timestamp.now();
+        cambios.updatedAt = Timestamp.now();
+
+        // Agregar al historial de estados si cambió el estado o la prioridad
+        if (cambios.estado || cambios.prioridad) {
+          const nuevoEstadoHistorial = {
+            estado: cambios.estado || estado,
+            prioridad: cambios.prioridad || prioridad,
+            fecha: Timestamp.now(),
+            usuarioId: user.uid,
+            usuarioNombre: user.displayName || user.email || "Usuario",
+          };
+
+          cambios.historialEstados = [
+            ...(requirement.historialEstados || []),
+            nuevoEstadoHistorial,
+          ];
+        }
+
         await updateDoc(requirementRef, cambios);
 
-        // Guardar en historial
+        // Guardar en historial de cambios
         const historialRef = collection(db, "requirementHistory");
         await addDoc(historialRef, {
           requirementId: requirement.id,
@@ -247,10 +280,10 @@ export default function RequirementDetail({
 
       await updateDoc(requirementRef, {
         comentarios: observacionesActualizadas,
-        fechaActualizacion: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
 
-      // Guardar en historial
+      // Guardar en historial de cambios
       const historialRef = collection(db, "requirementHistory");
       await addDoc(historialRef, {
         requirementId: requirement.id,
@@ -279,17 +312,26 @@ export default function RequirementDetail({
     }
   };
 
-  const formatDate = (date: Date | null | undefined) => {
-    if (!date) return "N/A";
-    const dateObj =
-      date instanceof Date ? date : (date as any)?.toDate?.() || new Date(date);
-    return dateObj.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  // Agregar usuario asignado
+  const handleAddAsignado = (usuarioId: string) => {
+    const usuario = users.find((u) => u.uid === usuarioId);
+    if (!usuario) return;
+
+    const nuevaAsignacion = {
+      usuarioId: usuario.uid,
+      usuarioNombre: usuario.nombre,
+      fechaAsignacion: new Date(),
+      rol: "responsable",
+    };
+
+    setAsignadoA([...asignadoA, nuevaAsignacion]);
+  };
+
+  // Eliminar usuario asignado
+  const handleRemoveAsignado = (index: number) => {
+    const nuevasAsignaciones = [...asignadoA];
+    nuevasAsignaciones.splice(index, 1);
+    setAsignadoA(nuevasAsignaciones);
   };
 
   return (
@@ -324,199 +366,223 @@ export default function RequirementDetail({
         </div>
       )}
 
-      <div className="row">
-        <div className="col-md-8">
-          <div className="card mb-4">
-            <div className="card-header themed-surface">
-              <h6 className="mb-0">Información del Requerimiento</h6>
+      {/* Información del Requerimiento - Ahora en una sola columna */}
+      <div className="card mb-4">
+        <div className="card-header bg-primary text-white">
+          <h6 className="mb-0">Información del Requerimiento</h6>
+        </div>
+        <div className="card-body">
+          {/* Sección 1: Tipo de Requerimiento */}
+          <div className="mb-4">
+            <h6 className="border-bottom pb-2 mb-3">
+              <i className="bi bi-card-checklist me-2"></i>
+              Tipo de Requerimiento
+            </h6>
+
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">Destino principal</label>
+                <div className="border rounded p-2 themed-surface">
+                  {getOptionLabel(
+                    requirement.destinoPrincipal || "informacion",
+                    destinosPrincipales
+                  )}
+                </div>
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">
+                  Naturaleza del pedido
+                </label>
+                <div className="border rounded p-2 themed-surface">
+                  {getOptionLabel(
+                    requirement.naturalezaPedido || "informacion_estatica",
+                    naturalezasPedido
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="card-body">
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Tipo</label>
+
+            {/* Campos condicionales */}
+            {requirement.destinoPrincipal === "app" &&
+              requirement.appReferencia && (
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">
+                      App de referencia
+                    </label>
                     <div className="border rounded p-2 themed-surface">
-                      {getRequirementTypeLabel(requirement.tipo)}
+                      {getOptionLabel(
+                        requirement.appReferencia,
+                        appsReferencia
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Prioridad</label>
-                    {editMode ? (
-                      <select
-                        className="form-select"
-                        value={prioridad}
-                        onChange={(e) =>
-                          setPrioridad(e.target.value as Priority)
-                        }
-                      >
-                        {priorityOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div>
-                        <span
-                          className={`badge bg-${
-                            priorityOptions.find((p) => p.value === prioridad)
-                              ?.color
-                          }`}
-                        >
-                          {
-                            priorityOptions.find((p) => p.value === prioridad)
-                              ?.label
-                          }
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Estado</label>
-                    {editMode ? (
-                      <select
-                        className="form-select"
-                        value={estado}
-                        onChange={(e) =>
-                          setEstado(e.target.value as RequirementStatus)
-                        }
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div>
-                        <span
-                          className={`badge bg-${
-                            statusOptions.find((s) => s.value === estado)?.color
-                          }`}
-                        >
-                          {statusOptions.find((s) => s.value === estado)?.label}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Asignado a</label>
-                    {editMode ? (
-                      <select
-                        className="form-select"
-                        value={asignadoA?.uid || ""}
-                        onChange={(e) => {
-                          const selectedUser = users.find(
-                            (u) => u.uid === e.target.value
-                          );
-                          setAsignadoA(selectedUser || null);
-                        }}
-                      >
-                        <option value="">No asignado</option>
-                        {users.map((user) => (
-                          <option key={user.uid} value={user.uid}>
-                            {user.nombre} ({user.email})
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div>
-                        {asignadoA ? (
-                          <div className="border rounded p-2 themed-surface">
-                            <strong>{asignadoA.nombre}</strong>
-                            <div className="text-muted small">
-                              {asignadoA.email}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted">No asignado</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Detalle del requerimiento
-                </label>
-                <div className="border rounded p-3 themed-surface">
-                  {requirement.detalle}
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label fw-bold">Observaciones</label>
-                {editMode ? (
-                  <textarea
-                    className="form-control"
-                    rows={3}
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                    placeholder="Agrega observaciones sobre el requerimiento"
-                  />
-                ) : (
-                  <div
-                    className="border rounded p-3 themed-surface"
-                    style={{ minHeight: "100px" }}
-                  >
-                    {observaciones || "Sin observaciones"}
-                  </div>
-                )}
-              </div>
-
-              {!editMode && (
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Agregar nueva observación
-                  </label>
-                  <textarea
-                    className="form-control"
-                    rows={2}
-                    value={nuevaObservacion}
-                    onChange={(e) => setNuevaObservacion(e.target.value)}
-                    placeholder="Escribe una nueva observación..."
-                  />
-                  <button
-                    className="btn btn-sm btn-outline-primary mt-2"
-                    onClick={handleAddObservacion}
-                    disabled={!nuevaObservacion.trim()}
-                  >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    Agregar Observación
-                  </button>
-                </div>
               )}
 
-              <div className="mb-3">
+            {requirement.destinoPrincipal === "dashboard" && (
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label className="form-label fw-bold">
+                    Dashboard de referencia
+                  </label>
+                  <div className="border rounded p-2 themed-surface">
+                    {dashboardInfo
+                      ? dashboardInfo.title
+                      : requirement.dashboardTitulo ||
+                        requirement.dashboardReferencia}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sección 2: Pedido */}
+          <div className="mb-4">
+            <h6 className="border-bottom pb-2 mb-3">
+              <i className="bi bi-clipboard-plus me-2"></i>
+              Pedido
+            </h6>
+
+            <div className="mb-3">
+              <label className="form-label fw-bold">Título breve</label>
+              <div className="border rounded p-2 themed-surface">
+                {requirement.tituloBreve || "Sin título"}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-bold">
+                Descripción del problema o necesidad
+              </label>
+              <div className="border rounded p-3 themed-surface">
+                {requirement.descripcionProblema || "Sin descripción"}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-bold">
+                Qué esperas que se resuelva
+              </label>
+              <div className="border rounded p-2 themed-surface">
+                {requirement.expectativaResolucion || "Sin especificar"}
+              </div>
+            </div>
+          </div>
+
+          {/* Sección 3: Prioridad (valores originales) */}
+          <div className="mb-4">
+            <h6 className="border-bottom pb-2 mb-3">
+              <i className="bi bi-flag me-2"></i>
+              Prioridad solicitada
+            </h6>
+
+            <div className="row">
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-bold">Importancia</label>
+                <div className="border rounded p-2 themed-surface">
+                  {getOptionLabel(
+                    requirement.importancia || "baja",
+                    importancias
+                  )}
+                </div>
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-bold">Urgencia</label>
+                <div className="border rounded p-2 themed-surface">
+                  {getOptionLabel(requirement.urgencia || "baja", importancias)}
+                </div>
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-bold">Fecha límite</label>
+                <div className="border rounded p-2 themed-surface">
+                  {requirement.fechaLimite
+                    ? formatDate(requirement.fechaLimite)
+                    : "Sin fecha límite"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sección 4: Detalles adicionales */}
+          <div className="mb-4">
+            <h6 className="border-bottom pb-2 mb-3">
+              <i className="bi bi-info-circle me-2"></i>
+              Detalles adicionales
+            </h6>
+
+            <div className="row">
+              <div className="col-md-6 mb-3">
                 <label className="form-label fw-bold">
-                  Información del solicitante
+                  Usuarios que lo van a usar
                 </label>
-                <div className="border rounded p-3 themed-surface">
+                <div className="border rounded p-2 themed-surface">
+                  {requirement.usuariosQueUsaran || "No especificado"}
+                </div>
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">
+                  Datos o fuentes necesarios
+                </label>
+                <div className="border rounded p-2 themed-surface">
+                  {requirement.datosFuentesNecesarios || "No especificado"}
+                </div>
+              </div>
+            </div>
+
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">
+                  Métrica/KPI a incluir
+                </label>
+                <div className="border rounded p-2 themed-surface">
+                  {requirement.metricasKPI || "No especificado"}
+                </div>
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">
+                  Observaciones del solicitante
+                </label>
+                <div className="border rounded p-2 themed-surface">
+                  {requirement.observaciones || "Sin observaciones"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sección 5: Información del solicitante */}
+          <div className="mb-3">
+            <h6 className="border-bottom pb-2 mb-3">
+              <i className="bi bi-person-circle me-2"></i>
+              Información del solicitante
+            </h6>
+
+            <div className="border rounded p-3 themed-surface">
+              <div className="row">
+                <div className="col-md-6">
                   <div>
-                    <strong>Nombre:</strong> {requirement.solicitante.nombre}
+                    <strong>Nombre:</strong>{" "}
+                    {requirement.solicitante?.nombre || "No disponible"}
                   </div>
                   <div>
-                    <strong>Email:</strong> {requirement.solicitante.email}
+                    <strong>Email:</strong>{" "}
+                    {requirement.solicitante?.email || "No disponible"}
                   </div>
+                </div>
+                <div className="col-md-6">
                   <div>
-                    <strong>Fecha de solicitud:</strong>{" "}
+                    <strong>Fecha de carga:</strong>{" "}
                     {formatDate(requirement.fechaCarga)}
                   </div>
-                  {requirement.fechaActualizacion && (
+                  {requirement.updatedAt && (
                     <div>
                       <strong>Última actualización:</strong>{" "}
-                      {formatDate(requirement.fechaActualizacion)}
+                      {formatDate(requirement.updatedAt)}
                     </div>
                   )}
                 </div>
@@ -524,87 +590,31 @@ export default function RequirementDetail({
             </div>
           </div>
         </div>
-
-        <div className="col-md-4">
-          <div className="card mb-4">
-            <div className="card-header themed-surface">
-              <h6 className="mb-0">Historial de Cambios</h6>
-            </div>
-            <div
-              className="card-body"
-              style={{ maxHeight: "400px", overflowY: "auto" }}
-            >
-              {historial.length === 0 ? (
-                <p className="text-muted">No hay historial de cambios</p>
-              ) : (
-                historial.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`mb-3 pb-3 ${
-                      index < historial.length - 1 ? "border-bottom" : ""
-                    }`}
-                  >
-                    <div className="small">
-                      <div className="d-flex justify-content-between">
-                        <strong>{item.usuario?.nombre || "Sistema"}</strong>
-                        <span className="text-muted">
-                          {item.timestamp ? formatDate(item.timestamp) : "N/A"}
-                        </span>
-                      </div>
-                      {item.cambios && Object.keys(item.cambios).length > 0 && (
-                        <div className="mt-2">
-                          {Object.entries(item.cambios).map(
-                            ([key, value]: [string, any]) => (
-                              <div key={key} className="mt-1">
-                                <div className="text-primary fw-semibold">
-                                  {key}:
-                                </div>
-                                <div className="ps-2 small">
-                                  {value.anterior !== undefined && (
-                                    <div>
-                                      <span className="text-muted">
-                                        Anterior:
-                                      </span>{" "}
-                                      {String(value.anterior)}
-                                    </div>
-                                  )}
-                                  {value.nuevo !== undefined && (
-                                    <div>
-                                      <span className="text-success">
-                                        Nuevo:
-                                      </span>{" "}
-                                      {String(value.nuevo)}
-                                    </div>
-                                  )}
-                                  {value.accion && (
-                                    <div>
-                                      <span className="text-info">Acción:</span>{" "}
-                                      {String(value.accion)}
-                                    </div>
-                                  )}
-                                  {value.contenido && (
-                                    <div>
-                                      <span className="text-info">
-                                        Contenido:
-                                      </span>{" "}
-                                      {String(value.contenido)}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
+      {/* Componente Seguimiento */}
+      <Seguimiento
+        editMode={editMode}
+        estado={estado}
+        setEstado={setEstado}
+        prioridad={prioridad}
+        setPrioridad={setPrioridad}
+        asignadoA={asignadoA}
+        onAddAsignado={handleAddAsignado}
+        onRemoveAsignado={handleRemoveAsignado}
+        observaciones={observaciones}
+        setObservaciones={setObservaciones}
+        nuevaObservacion={nuevaObservacion}
+        setNuevaObservacion={setNuevaObservacion}
+        onAddObservacion={handleAddObservacion}
+        users={users}
+        loading={loading}
+      />
+
+      {/* Componente Historial de Cambios */}
+      <HistorialCambios requirementId={requirement.id} />
+
+      {/* Botones de acción */}
       <div className="d-flex justify-content-end gap-2 mt-4">
         {editMode ? (
           <>
@@ -612,9 +622,9 @@ export default function RequirementDetail({
               className="btn btn-secondary"
               onClick={() => {
                 setEditMode(false);
-                setEstado(requirement.estado);
-                setPrioridad(requirement.prioridad || "media");
-                setAsignadoA(requirement.asignadoA);
+                setEstado(requirement.estado || "inicial");
+                setPrioridad(requirement.prioridad || "no_asignada");
+                setAsignadoA(requirement.asignadoA || []);
                 setObservaciones(requirement.comentarios || "");
               }}
               disabled={loading}
@@ -650,7 +660,7 @@ export default function RequirementDetail({
               onClick={() => setEditMode(true)}
             >
               <i className="bi bi-pencil me-1"></i>
-              Editar
+              Editar Seguimiento
             </button>
           </>
         )}

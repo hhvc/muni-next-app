@@ -11,6 +11,7 @@ export default function RequirementsPage() {
   const { user, userRoles } = useAuth();
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showForm, setShowForm] = useState(false); // Estado para controlar la visibilidad del formulario
 
   const isAdmin = userRoles?.some((role) =>
     ["admin", "root", "data"].includes(role)
@@ -44,7 +45,7 @@ export default function RequirementsPage() {
 
   return (
     <div className="container-xxl py-4">
-      {/* Header */}
+      {/* Header con botón para mostrar/ocultar formulario */}
       <div className="row mb-4">
         <div className="col-12">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
@@ -59,25 +60,47 @@ export default function RequirementsPage() {
               </p>
             </div>
 
-            <button
-              className="btn btn-outline-secondary"
-              onClick={() => router.push("/")}
-            >
-              <i className="bi bi-arrow-left me-2"></i>
-              Volver
-            </button>
+            <div className="d-flex gap-2">
+              <button
+                className="btn btn-outline-secondary"
+                onClick={() => router.push("/")}
+              >
+                <i className="bi bi-arrow-left me-2"></i>
+                Volver
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowForm(!showForm)}
+              >
+                <i
+                  className={`bi ${
+                    showForm ? "bi-dash-circle" : "bi-plus-circle"
+                  } me-2`}
+                ></i>
+                {showForm ? "Ocultar Formulario" : "Nuevo Requerimiento"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Formulario */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <RequirementForm horizontal />
+      {/* Formulario (condicional) */}
+      {showForm && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <RequirementForm
+              horizontal
+              onSuccess={() => {
+                // Opcional: aquí podrías agregar lógica adicional al éxito
+                setShowForm(false); // Cerrar el formulario después de enviar
+              }}
+              onCancel={() => setShowForm(false)}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Lista */}
+      {/* Lista de requerimientos */}
       <div className="row">
         <div className="col-12">
           <RequirementsList />
