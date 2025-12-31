@@ -1,3 +1,4 @@
+// src/components/forms/FormCard.tsx - VERSIÓN ACTUALIZADA
 "use client";
 
 import Link from "next/link";
@@ -17,6 +18,7 @@ interface FormCardProps {
     | "warning"
     | "info";
   target?: "_self" | "_blank";
+  showInactiveBadge?: boolean;
 }
 
 export default function FormCard({
@@ -27,6 +29,7 @@ export default function FormCard({
   badge,
   badgeColor = "primary",
   target = "_blank",
+  showInactiveBadge = false,
 }: FormCardProps) {
   const badgeColors = {
     primary: "bg-primary",
@@ -37,11 +40,98 @@ export default function FormCard({
     info: "bg-info",
   };
 
+  // Determinar si el formulario está inactivo
+  const isInactive = showInactiveBadge;
+
+  // Si está inactivo, no permitir clics y cambiar el estilo
+  if (isInactive) {
+    return (
+      <div className="text-decoration-none h-100">
+        <div
+          className="card dashboard-card h-100 border-0 shadow-sm opacity-75"
+          style={{ cursor: "not-allowed" }}
+        >
+          <div className="card-body d-flex flex-column p-4">
+            {/* Header */}
+            <div className="d-flex align-items-center mb-3">
+              {/* Icon */}
+              <div className="me-3 flex-shrink-0">
+                <div className="dashboard-icon dashboard-icon-secondary rounded-circle">
+                  {iconUrl ? (
+                    <Image src={iconUrl} alt={title} width={28} height={28} />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="28"
+                      height="28"
+                      fill="currentColor"
+                      className="bi bi-file-earmark-text"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z" />
+                      <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0z" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {/* Title + badges */}
+              <div className="flex-grow-1">
+                <h5 className="dashboard-card-title mb-1 fw-semibold text-muted">
+                  {title}
+                </h5>
+
+                <div className="d-flex gap-2">
+                  {badge && (
+                    <span className={`badge ${badgeColors[badgeColor]}`}>
+                      {badge}
+                    </span>
+                  )}
+                  <span className="badge bg-secondary">Inactivo</span>
+                </div>
+              </div>
+
+              {/* Lock icon for inactive */}
+              <div className="ms-2 text-secondary">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="22"
+                  height="22"
+                  fill="currentColor"
+                  className="bi bi-lock"
+                  viewBox="0 0 16 16"
+                >
+                  <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Description */}
+            {description && (
+              <p className="dashboard-card-text flex-grow-1 text-muted">
+                {description}
+              </p>
+            )}
+
+            {/* Footer */}
+            <div className="mt-3 pt-3 border-top">
+              <small className="text-secondary fw-medium">
+                Formulario deshabilitado
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Formulario activo (comportamiento normal)
   return (
     <Link
       href={formUrl}
       target={target}
       className="text-decoration-none h-100"
+      rel={target === "_blank" ? "noopener noreferrer" : undefined}
     >
       <div className="card dashboard-card h-100 border-0 shadow-sm hover-lift">
         <div className="card-body d-flex flex-column p-4">
@@ -51,12 +141,7 @@ export default function FormCard({
             <div className="me-3 flex-shrink-0">
               <div className="dashboard-icon dashboard-icon-info rounded-circle">
                 {iconUrl ? (
-                  <Image
-                    src={iconUrl}
-                    alt={title}
-                    width={28}
-                    height={28}
-                  />
+                  <Image src={iconUrl} alt={title} width={28} height={28} />
                 ) : (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -75,9 +160,7 @@ export default function FormCard({
 
             {/* Title + badge */}
             <div className="flex-grow-1">
-              <h5 className="dashboard-card-title mb-1 fw-semibold">
-                {title}
-              </h5>
+              <h5 className="dashboard-card-title mb-1 fw-semibold">{title}</h5>
 
               {badge && (
                 <span className={`badge ${badgeColors[badgeColor]}`}>
@@ -106,9 +189,7 @@ export default function FormCard({
 
           {/* Description */}
           {description && (
-            <p className="dashboard-card-text flex-grow-1">
-              {description}
-            </p>
+            <p className="dashboard-card-text flex-grow-1">{description}</p>
           )}
 
           {/* Footer */}

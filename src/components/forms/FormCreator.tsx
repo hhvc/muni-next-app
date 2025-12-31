@@ -1,18 +1,30 @@
-// src/components/forms/FormCreator.tsx - VERSIÓN SIN ANY
+// src/components/forms/FormCreator.tsx - VERSIÓN ACTUALIZADA CON EDICIÓN
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import { FormMetadata } from "@/types/formTypes";
 import { prepareForFirestore } from "@/utils/firestoreHelpers";
 
 interface FormCreatorProps {
   onSuccess?: () => void;
+  onCancel?: () => void;
+  formToEdit?: FormMetadata | null;
 }
 
-export default function FormCreator({ onSuccess }: FormCreatorProps) {
+export default function FormCreator({
+  onSuccess,
+  onCancel,
+  formToEdit,
+}: FormCreatorProps) {
   const { user, userRoles } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +40,19 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
   const [tagInput, setTagInput] = useState("");
   const [allowedRoles] = useState<string[]>(userRoles || []);
   const [order, setOrder] = useState(0);
+
+  // Inicializar formulario con datos de edición
+  useEffect(() => {
+    if (formToEdit) {
+      setTitle(formToEdit.title || "");
+      setDescription(formToEdit.description || "");
+      setFormUrl(formToEdit.formUrl || "");
+      setIconUrl(formToEdit.iconUrl || "");
+      setCategory(formToEdit.category || "");
+      setTags(formToEdit.tags || []);
+      setOrder(formToEdit.order || 0);
+    }
+  }, [formToEdit]);
 
   // Agregar tag
   const addTag = () => {
@@ -57,7 +82,7 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
     setSuccess("");
 
     if (!user) {
-      setError("Debes estar autenticado para crear formularios");
+      setError("Debes estar autenticado para crear o editar formularios");
       setLoading(false);
       return;
     }
@@ -80,17 +105,20 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
       const normalizedAllowedRoles = normalizeAllowedRoles(allowedRoles);
 
       // Crear objeto usando FormMetadata como guía
-      const formData: Omit<FormMetadata, "id" | "createdAt" | "updatedAt"> = {
+      const formData: Omit<FormMetadata, "id" | "createdAt" | "updatedAt"> & {
+        updatedAt: any;
+      } = {
         title: title.trim(),
         description: description.trim() || undefined,
         formUrl: formUrl.trim(),
         iconUrl: iconUrl.trim() || undefined,
         category: category.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
-        createdBy: user.uid,
+        createdBy: formToEdit?.createdBy || user.uid,
         isActive: true,
         allowedRoles: normalizedAllowedRoles || undefined,
         order: order || 0,
+        updatedAt: serverTimestamp(),
       };
 
       console.log("📤 Datos del formulario a guardar:", formData);
@@ -100,31 +128,38 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
       const cleanedData = prepareForFirestore(formData);
       console.log("🧹 Datos limpios para Firestore:", cleanedData);
 
-      // Agregar timestamps de Firestore
-      const formToSave = {
-        ...cleanedData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      console.log("💾 Guardando en Firestore...");
-      const docRef = await addDoc(collection(db, "forms"), formToSave);
-
-      console.log("✅ Formulario guardado con ID:", docRef.id);
-
-      // Limpiar formulario
-      setTitle("");
-      setDescription("");
-      setFormUrl("");
-      setIconUrl("");
-      setCategory("");
-      setTags([]);
-      setOrder(0);
-      setSuccess("Formulario registrado exitosamente");
-
-      if (onSuccess) {
-        onSuccess();
+      if (formToEdit?.id) {
+        // Modo edición: actualizar documento existente
+        const formRef = doc(db, "forms", formToEdit.id);
+        await updateDoc(formRef, cleanedData);
+        console.log("✅ Formulario actualizado con ID:", formToEdit.id);
+        setSuccess("Formulario actualizado exitosamente");
+      } else {
+        // Modo creación: agregar nuevo documento
+        const formToSave = {
+          ...cleanedData,
+          createdAt: serverTimestamp(),
+        };
+        console.log("💾 Guardando en Firestore...");
+        const docRef = await addDoc(collection(db, "forms"), formToSave);
+        console.log("✅ Formulario guardado con ID:", docRef.id);
+        setSuccess("Formulario registrado exitosamente");
+        // Limpiar formulario solo en creación
+        setTitle("");
+        setDescription("");
+        setFormUrl("");
+        setIconUrl("");
+        setCategory("");
+        setTags([]);
+        setOrder(0);
       }
+
+      // Llamar a onSuccess después de un breve tiempo para que el usuario vea el mensaje
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 1500);
     } catch (err) {
       console.error("❌ Error al guardar formulario:", err);
 
@@ -134,7 +169,7 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
       // Mensajes de error más específicos
       if (firebaseError.code === "permission-denied") {
         setError(
-          "No tienes permisos para crear formularios. Contacta al administrador."
+          "No tienes permisos para crear o editar formularios. Contacta al administrador."
         );
       } else if (firebaseError.code === "unavailable") {
         setError(
@@ -149,10 +184,37 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
     }
   };
 
+  // Función para limpiar el formulario (solo en modo creación)
+  const handleClear = () => {
+    setTitle("");
+    setDescription("");
+    setFormUrl("");
+    setIconUrl("");
+    setCategory("");
+    setTags([]);
+    setOrder(0);
+    setError("");
+    setSuccess("");
+  };
+
   return (
     <div className="card shadow-sm">
-      <div className="card-header bg-primary text-white">
-        <h5 className="mb-0">Registrar Nuevo Formulario</h5>
+      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 className="mb-0">
+          {formToEdit
+            ? "✏️ Editar Formulario"
+            : "📝 Registrar Nuevo Formulario"}
+        </h5>
+        {onCancel && (
+          <button
+            type="button"
+            className="btn btn-sm btn-light"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        )}
       </div>
       <div className="card-body">
         <form onSubmit={handleSubmit}>
@@ -358,24 +420,28 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
           </div>
 
           <div className="d-flex justify-content-between mt-4">
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => {
-                setTitle("");
-                setDescription("");
-                setFormUrl("");
-                setIconUrl("");
-                setCategory("");
-                setTags([]);
-                setOrder(0);
-                setError("");
-                setSuccess("");
-              }}
-              disabled={loading}
-            >
-              Limpiar
-            </button>
+            <div>
+              {onCancel && (
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary me-2"
+                  onClick={onCancel}
+                  disabled={loading}
+                >
+                  Cancelar
+                </button>
+              )}
+              {!formToEdit && (
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={handleClear}
+                  disabled={loading}
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
             <button
               type="submit"
               className="btn btn-primary"
@@ -388,8 +454,10 @@ export default function FormCreator({ onSuccess }: FormCreatorProps) {
                     role="status"
                     aria-hidden="true"
                   ></span>
-                  Guardando...
+                  {formToEdit ? "Actualizando..." : "Guardando..."}
                 </>
+              ) : formToEdit ? (
+                "Actualizar Formulario"
               ) : (
                 "Guardar Formulario"
               )}

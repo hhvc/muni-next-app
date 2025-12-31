@@ -1,3 +1,4 @@
+// src/components/forms/FormsGrid.tsx - VERSIÓN CORREGIDA
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -9,18 +10,29 @@ import FormCard from "./FormCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface FormsGridProps {
+  // Props para uso normal (carga desde Firebase)
   category?: string;
   showInactive?: boolean;
+
+  // Props para uso desde FormsManager
+  forms?: FormMetadata[];
+  initialShowAll?: boolean; // Control inicial de si mostrar todos
 }
 
 export default function FormsGrid({
   category,
   showInactive = false,
+  forms: externalForms,
+  initialShowAll = false,
 }: FormsGridProps) {
   const { user, userRoles } = useAuth();
   const [forms, setForms] = useState<FormMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAll, setShowAll] = useState(initialShowAll); // Estado interno para controlar la vista
+
+  // Determinar si estamos usando formularios externos o cargando desde Firebase
+  const isUsingExternalForms = externalForms !== undefined;
 
   /* ---------------- Helpers ---------------- */
 
@@ -72,7 +84,17 @@ export default function FormsGrid({
 
   /* ---------------- Data fetch ---------------- */
 
+  // Cargar formularios desde Firebase si no se proporcionan externamente
   useEffect(() => {
+    // Si se proporcionan formularios externos, usarlos directamente
+    if (isUsingExternalForms) {
+      setForms(externalForms || []);
+      setLoading(false);
+      // Cuando recibimos formularios externos, reiniciamos showAll al valor inicial
+      setShowAll(initialShowAll);
+      return;
+    }
+
     const fetchForms = async () => {
       if (!user) {
         setLoading(false);
@@ -146,7 +168,15 @@ export default function FormsGrid({
     normalizeAllowedRoles,
     toSafeDate,
     getOrderValue,
+    isUsingExternalForms,
+    externalForms,
+    initialShowAll,
   ]);
+
+  /* ---------------- Filtrado de formularios para vista ---------------- */
+
+  // Determinar qué formularios mostrar
+  const displayForms = showAll ? forms : forms.slice(0, 6);
 
   /* ---------------- UI states ---------------- */
 
@@ -183,10 +213,12 @@ export default function FormsGrid({
 
   return (
     <section>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h3 className="dashboard-title mb-0">Formularios disponibles</h3>
-        <small className="text-muted">{forms.length} formulario(s)</small>
-      </div>
+      {!isUsingExternalForms && (
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h3 className="dashboard-title mb-0">Formularios disponibles</h3>
+          <small className="text-muted">{forms.length} formulario(s)</small>
+        </div>
+      )}
 
       <div
         className="forms-grid"
@@ -197,7 +229,7 @@ export default function FormsGrid({
           alignItems: "stretch",
         }}
       >
-        {forms.map((form) => (
+        {displayForms.map((form) => (
           <FormCard
             key={form.id}
             title={form.title}
@@ -206,10 +238,25 @@ export default function FormsGrid({
             iconUrl={form.iconUrl || undefined}
             target="_blank"
             badge={form.category || undefined}
-            badgeColor="info"
+            badgeColor="primary"
+            showInactiveBadge={!form.isActive}
           />
         ))}
       </div>
+
+      {/* Botón para mostrar más/menos formularios */}
+      {forms.length > 6 && (
+        <div className="text-center mt-4">
+          <button
+            className="btn btn-outline-primary btn-sm"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll
+              ? "Ver menos"
+              : `Ver todos los formularios (${forms.length})`}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
