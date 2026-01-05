@@ -131,12 +131,10 @@ export default function DocumentCard({
         target={target}
         className="text-decoration-none h-100 d-flex flex-column"
       >
-        {/* =========================
-            Thumbnail
-           ========================= */}
+        {/* Thumbnail */}
         {showThumbnail && (
           <div
-            className="card-img-top position-relative"
+            className="card-img-top position-relative document-card-thumbnail"
             style={{ height: "180px", overflow: "hidden" }}
           >
             {!processedThumbnailUrl || imageError ? (
@@ -156,23 +154,19 @@ export default function DocumentCard({
           </div>
         )}
 
-        {/* =========================
-            Card body
-           ========================= */}
-        <div className="card-body d-flex flex-column p-4">
+        {/* Card body */}
+        <div className="card-body d-flex flex-column p-3 document-card-body">
           {/* Header */}
-          <div className="d-flex align-items-start mb-2">
-            <div className="flex-grow-1">
-              <h5 className="document-card-title mb-1 fw-semibold text-truncate">
-                {title}
-              </h5>
+          <div className="d-flex align-items-start mb-2 document-card-header">
+            <div className="flex-grow-1 me-2 document-card-title-container">
+              <h5 className="document-card-title mb-1 fw-semibold">{title}</h5>
             </div>
 
-            <div className="ms-2 flex-shrink-0 text-muted">
+            <div className="ms-auto flex-shrink-0 text-muted document-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 fill="currentColor"
                 className="bi bi-box-arrow-up-right"
                 viewBox="0 0 16 16"
@@ -190,7 +184,7 @@ export default function DocumentCard({
           </div>
 
           {/* Badge y metadatos */}
-          <div className="mb-3">
+          <div className="mb-3 document-card-badges">
             {badge && (
               <span className={`badge ${badgeColors[badgeColor]} fs-7 me-2`}>
                 {badge}
@@ -206,7 +200,7 @@ export default function DocumentCard({
 
           {/* Descripción */}
           {description && (
-            <p className="document-card-text flex-grow-1 small text-muted">
+            <p className="document-card-text flex-grow-1 small text-muted mb-3">
               {description.length > 120
                 ? `${description.substring(0, 120)}...`
                 : description}
@@ -214,11 +208,11 @@ export default function DocumentCard({
           )}
 
           {/* Footer con metadatos */}
-          <div className="mt-3 pt-3 border-top">
+          <div className="mt-auto pt-3 border-top document-card-footer">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 {creator && (
-                  <small className="fw-medium d-flex align-items-center">
+                  <small className="fw-medium d-flex align-items-center document-card-creator">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       width="14"
@@ -229,19 +223,23 @@ export default function DocumentCard({
                     >
                       <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z" />
                     </svg>
-                    {creator}
+                    <span className="text-truncate d-inline-block document-card-creator-name">
+                      {creator}
+                    </span>
                   </small>
                 )}
               </div>
 
               <div className="text-end">
                 {createdAt && (
-                  <small className="text-muted d-block">
+                  <small className="text-muted d-block document-card-date">
                     {formatDate(createdAt)}
                   </small>
                 )}
                 {fileSize && (
-                  <small className="text-muted d-block">{fileSize}</small>
+                  <small className="text-muted d-block document-card-size">
+                    {fileSize}
+                  </small>
                 )}
               </div>
             </div>

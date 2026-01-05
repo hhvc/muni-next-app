@@ -658,7 +658,7 @@ export default function DocumentForm({
               {/* Vista previa del archivo */}
               {(file || filePreview) && (
                 <div className="mt-3">
-                  <div className="d-flex align-items-center justify-content-between bg-light p-3 rounded">
+                  <div className="d-flex align-items-center justify-content-between themed-surface p-3 rounded">
                     <div>
                       <strong>
                         <i className="bi bi-file-earmark me-2"></i>
@@ -818,7 +818,7 @@ export default function DocumentForm({
             {/* Roles permitidos (solo información) */}
             <div className="col-md-3 mb-3">
               <label className="form-label">Roles permitidos</label>
-              <div className="form-control bg-light">
+              <div className="form-control themed-surface">
                 <small>
                   {allowedRoles && allowedRoles.length > 0 ? (
                     <span className="text-success">

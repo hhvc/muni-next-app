@@ -1,14 +1,22 @@
-/* src/components/documents/DocumentsManager.tsx - VERSIÓN CORREGIDA PARA FILTRAR PDFs */
+/* src/components/documents/DocumentsManager.tsx */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  deleteDoc,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import { DocumentMetadata } from "../../types/documentTypes";
 import DocumentCard from "./DocumentCard";
 import DocumentForm from "./DocumentForm";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import Image from "next/image";
 
 type ManagerView = "view" | "create" | "edit";
 
@@ -149,6 +157,26 @@ export default function DocumentsManager() {
   const handleCancelEdit = () => {
     setSelectedDocument(null);
     setActiveView("view");
+  };
+
+  // Manejar activación/desactivación de documento
+  const handleToggleDocumentStatus = async (document: DocumentMetadata) => {
+    if (!canEditDocuments || !document.id) {
+      setError("No tienes permisos para editar documentos");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "documents", document.id), {
+        isActive: !document.isActive,
+        updatedAt: Timestamp.now(),
+      });
+      setRefreshKey((prev) => prev + 1);
+      setError("");
+    } catch (err) {
+      console.error("❌ Error al cambiar estado del documento:", err);
+      setError(`Error al cambiar estado: ${(err as Error).message}`);
+    }
   };
 
   // Manejar eliminación
@@ -345,7 +373,7 @@ export default function DocumentsManager() {
                 {/* Estadísticas adicionales de tipos de archivo */}
                 <div className="row mb-4">
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">{countByFileType("word")}</h5>
                         <p className="text-muted mb-0 small">Word</p>
@@ -353,7 +381,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">{countByFileType("excel")}</h5>
                         <p className="text-muted mb-0 small">Excel</p>
@@ -361,7 +389,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">
                           {countByFileType("powerpoint")}
@@ -371,7 +399,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">{countByFileType("image")}</h5>
                         <p className="text-muted mb-0 small">Imágenes</p>
@@ -379,7 +407,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">{countByFileType("text")}</h5>
                         <p className="text-muted mb-0 small">Texto</p>
@@ -387,7 +415,7 @@ export default function DocumentsManager() {
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <div className="card border-0 bg-light">
+                    <div className="card border-0 themed-surface">
                       <div className="card-body text-center">
                         <h5 className="mb-0">{countByFileType("zip")}</h5>
                         <p className="text-muted mb-0 small">Zip</p>
@@ -396,7 +424,239 @@ export default function DocumentsManager() {
                   </div>
                 </div>
 
-                {/* Grid de documentos */}
+                {/* Tabla de documentos (para administradores) */}
+                {canEditDocuments && (
+                  <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-info text-white">
+                      <h5 className="mb-0">
+                        <i className="bi bi-list-ul me-2"></i>
+                        Gestión de Documentos
+                      </h5>
+                    </div>
+                    <div className="card-body p-0">
+                      <div className="table-responsive">
+                        <table className="table table-hover mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Documento</th>
+                              <th>Tipo</th>
+                              <th>Creador</th>
+                              <th>Fecha</th>
+                              <th>Estado</th>
+                              <th>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {documents.map((doc) => (
+                              <tr key={doc.id}>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    {doc.thumbnailUrl ? (
+                                      <div
+                                        className="rounded me-3"
+                                        style={{
+                                          position: "relative",
+                                          width: "40px",
+                                          height: "40px",
+                                        }}
+                                      >
+                                        <Image
+                                          src={doc.thumbnailUrl}
+                                          alt={doc.title}
+                                          fill
+                                          sizes="40px"
+                                          className="rounded"
+                                          style={{
+                                            objectFit: "cover",
+                                          }}
+                                          unoptimized={
+                                            process.env.NODE_ENV !==
+                                            "production"
+                                          }
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div
+                                        className="rounded bg-secondary d-flex align-items-center justify-content-center me-3"
+                                        style={{
+                                          width: "40px",
+                                          height: "40px",
+                                        }}
+                                      >
+                                        <i
+                                          className={`bi ${getFileIcon(
+                                            doc.fileType
+                                          )} text-white`}
+                                        ></i>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <strong>{doc.title}</strong>
+                                      {doc.description && (
+                                        <div className="text-muted small">
+                                          {doc.description.substring(0, 60)}...
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="badge bg-light text-dark">
+                                    {doc.fileType
+                                      ?.split("/")
+                                      .pop()
+                                      ?.toUpperCase() || "N/A"}
+                                  </span>
+                                </td>
+                                <td>{doc.creator}</td>
+                                <td>
+                                  <small className="text-muted">
+                                    {formatDate(doc.createdAt)}
+                                  </small>
+                                </td>
+                                <td>
+                                  {doc.isActive ? (
+                                    <span className="badge bg-success">
+                                      <i className="bi bi-check-circle me-1"></i>
+                                      Activo
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-secondary">
+                                      <i className="bi bi-x-circle me-1"></i>
+                                      Inactivo
+                                    </span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    <a
+                                      href={doc.documentUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn btn-sm btn-outline-primary d-flex align-items-center"
+                                      title="Ver documento"
+                                    >
+                                      <i className="bi bi-eye me-1"></i>
+                                      Ver
+                                    </a>
+                                    {canEditDocuments && (
+                                      <>
+                                        <button
+                                          className="btn btn-sm btn-outline-info d-flex align-items-center"
+                                          onClick={() =>
+                                            handleEditDocument(doc)
+                                          }
+                                          title="Editar documento"
+                                        >
+                                          <i className="bi bi-pencil me-1"></i>
+                                          Editar
+                                        </button>
+                                        <button
+                                          className="btn btn-sm btn-outline-warning d-flex align-items-center"
+                                          onClick={() =>
+                                            handleToggleDocumentStatus(doc)
+                                          }
+                                          title={
+                                            doc.isActive
+                                              ? "Desactivar documento"
+                                              : "Activar documento"
+                                          }
+                                        >
+                                          {doc.isActive ? (
+                                            <>
+                                              <i className="bi bi-pause me-1"></i>
+                                              Desactivar
+                                            </>
+                                          ) : (
+                                            <>
+                                              <i className="bi bi-play me-1"></i>
+                                              Activar
+                                            </>
+                                          )}
+                                        </button>
+                                        <button
+                                          className="btn btn-sm btn-outline-danger d-flex align-items-center"
+                                          onClick={() =>
+                                            setShowDeleteConfirm(doc.id || null)
+                                          }
+                                          title="Eliminar documento"
+                                        >
+                                          <i className="bi bi-trash me-1"></i>
+                                          Eliminar
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Modal de confirmación de eliminación */}
+                                  {showDeleteConfirm === doc.id && (
+                                    <div
+                                      className="modal fade show d-block"
+                                      style={{ background: "rgba(0,0,0,0.5)" }}
+                                      tabIndex={-1}
+                                    >
+                                      <div className="modal-dialog modal-dialog-centered">
+                                        <div className="modal-content">
+                                          <div className="modal-header bg-danger text-white">
+                                            <h5 className="modal-title">
+                                              <i className="bi bi-exclamation-triangle me-2"></i>
+                                              Confirmar Eliminación
+                                            </h5>
+                                          </div>
+                                          <div className="modal-body">
+                                            <p>
+                                              ¿Estás seguro de que deseas
+                                              eliminar el documento{" "}
+                                              <strong>{doc.title}</strong>?
+                                            </p>
+                                            <p className="text-danger">
+                                              <i className="bi bi-exclamation-circle me-1"></i>
+                                              Esta acción no se puede deshacer.
+                                            </p>
+                                          </div>
+                                          <div className="modal-footer">
+                                            <button
+                                              type="button"
+                                              className="btn btn-outline-secondary d-flex align-items-center"
+                                              onClick={() =>
+                                                setShowDeleteConfirm(null)
+                                              }
+                                            >
+                                              <i className="bi bi-x-circle me-1"></i>
+                                              Cancelar
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger d-flex align-items-center"
+                                              onClick={() =>
+                                                doc.id &&
+                                                handleDeleteDocument(doc.id)
+                                              }
+                                            >
+                                              <i className="bi bi-trash me-1"></i>
+                                              Confirmar Eliminación
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="card-footer themed-surface">
+                      <small className="text-muted">
+                        Mostrando {documents.length} documento(s)
+                      </small>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grid de documentos (para todos los usuarios) */}
                 <div className="mb-4">
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <h5 className="mb-0">
@@ -417,101 +677,6 @@ export default function DocumentsManager() {
 
                   {renderDocumentGrid()}
                 </div>
-
-                {/* Tabla detallada (opcional) */}
-                {canEditDocuments && (
-                  <div className="card border-0 shadow-sm mt-4">
-                    <div className="card-header themed-surface">
-                      <h6 className="mb-0">
-                        <i className="bi bi-list-ul me-2"></i>
-                        Lista Detallada
-                      </h6>
-                    </div>
-                    <div className="card-body p-0">
-                      <div className="table-responsive">
-                        <table className="table table-hover mb-0">
-                          <thead className="table-light">
-                            <tr>
-                              <th>Documento</th>
-                              <th>Tipo</th>
-                              <th>Creador</th>
-                              <th>Fecha</th>
-                              <th>Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {documents.map((doc) => (
-                              <tr key={doc.id}>
-                                <td>
-                                  <div className="d-flex align-items-center">
-                                    <i
-                                      className={`bi ${getFileIcon(
-                                        doc.fileType
-                                      )} me-2 text-info`}
-                                    ></i>
-                                    <div>
-                                      <strong>{doc.title}</strong>
-                                      {doc.description && (
-                                        <div className="text-muted small">
-                                          {doc.description.substring(0, 60)}...
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className="badge themed-surface text-dark">
-                                    {doc.fileType || "N/A"}
-                                  </span>
-                                </td>
-                                <td>{doc.creator}</td>
-                                <td>
-                                  <small className="text-muted">
-                                    {formatDate(doc.createdAt)}
-                                  </small>
-                                </td>
-                                <td>
-                                  <div className="d-flex gap-2">
-                                    <a
-                                      href={doc.documentUrl}
-                                      target="_blank"
-                                      className="btn btn-sm btn-outline-primary"
-                                      title="Ver documento"
-                                    >
-                                      <i className="bi bi-eye"></i>
-                                    </a>
-                                    {canEditDocuments && (
-                                      <>
-                                        <button
-                                          className="btn btn-sm btn-outline-info"
-                                          onClick={() =>
-                                            handleEditDocument(doc)
-                                          }
-                                          title="Editar"
-                                        >
-                                          <i className="bi bi-pencil"></i>
-                                        </button>
-                                        <button
-                                          className="btn btn-sm btn-outline-danger"
-                                          onClick={() =>
-                                            setShowDeleteConfirm(doc.id)
-                                          }
-                                          title="Eliminar"
-                                        >
-                                          <i className="bi bi-trash"></i>
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -567,6 +732,29 @@ export default function DocumentsManager() {
                       </small>
                     </li>
                   </ul>
+
+                  {activeView === "edit" && selectedDocument && (
+                    <div className="mt-4 pt-3 border-top">
+                      <h6 className="text-primary">
+                        <i className="bi bi-info-circle me-2"></i>
+                        Editando Documento
+                      </h6>
+                      <p className="small text-muted">
+                        Estás editando:{" "}
+                        <strong>{selectedDocument.title}</strong>
+                      </p>
+                      <p className="small text-muted">
+                        Creado: {formatDate(selectedDocument.createdAt)}
+                      </p>
+                      <button
+                        className="btn btn-outline-secondary btn-sm w-100"
+                        onClick={handleCancelEdit}
+                      >
+                        <i className="bi bi-arrow-left me-1"></i>
+                        Cancelar Edición
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

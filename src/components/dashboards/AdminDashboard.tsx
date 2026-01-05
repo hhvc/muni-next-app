@@ -6,19 +6,17 @@ import { useAuth } from "@/components/AuthProvider";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import FormsManager from "@/components/forms/FormsManager";
-import FormCreator from "@/components/forms/FormCreator";
 import UsersTable from "./UsersTable";
 import InvitationsTable from "./InvitationsTable";
 import LookersManager from "@/components/lookers/LookersManager";
-import DashboardCreator from "@/components/lookers/DashboardCreator";
+import DocumentsManager from "@/components/documents/DocumentsManager"; // Importar DocumentsManager
 import RequirementsList from "@/components/requirements/RequirementsList";
 
 type AdminTab =
   | "requirements"
   | "forms"
-  | "create-form"
   | "lookers"
-  | "create-looker"
+  | "documents" // Nueva pestaña
   | "users"
   | "invitations"
   | "settings";
@@ -37,6 +35,7 @@ export default function AdminDashboard() {
     requirementsEnProgreso: 0,
     requirementsCompletados: 0,
     requirementsRechazados: 0,
+    documentsCount: 0, // Nueva estadística
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -92,6 +91,10 @@ export default function AdminDashboard() {
           (r) => r.estado === "rechazado"
         ).length;
 
+        // ✅ Contar documentos (nueva estadística)
+        const documentsSnapshot = await getDocs(collection(db, "documents"));
+        const documentsCount = documentsSnapshot.size;
+
         setStats({
           formsCount,
           dashboardsCount,
@@ -103,6 +106,7 @@ export default function AdminDashboard() {
           requirementsEnProgreso,
           requirementsCompletados,
           requirementsRechazados,
+          documentsCount, // Agregar al estado
         });
       } catch (error) {
         console.error("Error al cargar estadísticas:", error);
@@ -127,7 +131,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // ✅ Opciones del menú de navegación
+  // ✅ Opciones del menú de navegación ACTUALIZADAS
   const menuItems = [
     {
       id: "requirements" as AdminTab,
@@ -144,13 +148,6 @@ export default function AdminDashboard() {
       bgClass: "bg-primary",
     },
     {
-      id: "create-form" as AdminTab,
-      label: "➕ Nuevo Formulario",
-      icon: "bi-plus-circle",
-      color: "primary",
-      bgClass: "bg-primary",
-    },
-    {
       id: "lookers" as AdminTab,
       label: "📊 Tableros",
       icon: "bi-bar-chart-line",
@@ -158,11 +155,11 @@ export default function AdminDashboard() {
       bgClass: "bg-info",
     },
     {
-      id: "create-looker" as AdminTab,
-      label: "➕ Nuevo Tablero",
-      icon: "bi-plus-circle",
-      color: "info",
-      bgClass: "bg-info",
+      id: "documents" as AdminTab, // Nueva opción
+      label: "📄 Documentos",
+      icon: "bi-files",
+      color: "secondary",
+      bgClass: "bg-secondary",
     },
     {
       id: "users" as AdminTab,
@@ -171,13 +168,13 @@ export default function AdminDashboard() {
       color: "success",
       bgClass: "bg-success",
     },
-    {
-      id: "invitations" as AdminTab,
-      label: "✉️ Invitaciones",
-      icon: "bi-envelope",
-      color: "warning",
-      bgClass: "bg-warning",
-    },
+    // {
+    //   id: "invitations" as AdminTab,
+    //   label: "✉️ Invitaciones",
+    //   icon: "bi-envelope",
+    //   color: "warning",
+    //   bgClass: "bg-warning",
+    // },
     {
       id: "settings" as AdminTab,
       label: "⚙️ Configuración",
@@ -186,15 +183,6 @@ export default function AdminDashboard() {
       bgClass: "bg-secondary",
     },
   ];
-
-  // Función para manejar éxito en creación
-  const handleFormSuccess = () => {
-    setActiveTab("forms");
-  };
-
-  const handleDashboardSuccess = () => {
-    setActiveTab("lookers");
-  };
 
   return (
     <div className="container-fluid mt-3">
@@ -270,22 +258,15 @@ export default function AdminDashboard() {
                     <i className="bi bi-list-ul me-2"></i>Gestión de Formularios
                   </>
                 )}
-                {activeTab === "create-form" && (
-                  <>
-                    <i className="bi bi-plus-circle me-2"></i>Crear Nuevo
-                    Formulario
-                  </>
-                )}
                 {activeTab === "lookers" && (
                   <>
                     <i className="bi bi-bar-chart-line me-2"></i>Gestión de
                     Tableros
                   </>
                 )}
-                {activeTab === "create-looker" && (
+                {activeTab === "documents" && ( // Nuevo título
                   <>
-                    <i className="bi bi-plus-circle me-2"></i>Crear Nuevo
-                    Tablero
+                    <i className="bi bi-files me-2"></i>Gestión de Documentos
                   </>
                 )}
                 {activeTab === "users" && (
@@ -310,12 +291,10 @@ export default function AdminDashboard() {
                   "Gestiona todos los requerimientos de datos solicitados por usuarios"}
                 {activeTab === "forms" &&
                   "Administra y visualiza todos los formularios de Google Forms"}
-                {activeTab === "create-form" &&
-                  "Registra un nuevo formulario de Google en el sistema"}
                 {activeTab === "lookers" &&
                   "Administra y visualiza todos los dashboards de Looker Studio. Puedes ver, editar, eliminar y cambiar el estado."}
-                {activeTab === "create-looker" &&
-                  "Registra un nuevo dashboard de Looker Studio en el sistema"}
+                {activeTab === "documents" && // Nueva descripción
+                  "Administra y visualiza todos los documentos del sistema. Puedes ver, editar, eliminar y cambiar el estado."}
                 {activeTab === "users" && "Gestiona usuarios y permisos"}
                 {activeTab === "invitations" &&
                   "Crea y gestiona invitaciones para nuevos usuarios"}
@@ -351,62 +330,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {activeTab === "create-form" && (
-                <div>
-                  <div className="alert alert-info mb-4" role="alert">
-                    <i className="bi bi-info-circle me-2"></i>
-                    Completa los datos para registrar un nuevo formulario de
-                    Google en el sistema.
-                  </div>
-                  <div className="row">
-                    <div className="col-12 col-lg-8">
-                      <FormCreator onSuccess={handleFormSuccess} />
-                    </div>
-                    <div className="col-12 col-lg-4">
-                      <div className="card border-primary">
-                        <div className="card-header bg-primary text-white">
-                          <h6 className="mb-0">
-                            <i className="bi bi-lightbulb me-2"></i>
-                            Consejos para Formularios
-                          </h6>
-                        </div>
-                        <div className="card-body">
-                          <ul className="list-unstyled mb-0">
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Asegúrate de que el formulario de Google tenga
-                                permisos públicos
-                              </small>
-                            </li>
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Usa categorías para organizar mejor los
-                                formularios
-                              </small>
-                            </li>
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Asigna roles específicos si el formulario es
-                                restringido
-                              </small>
-                            </li>
-                            <li>
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                El orden determina la posición en la lista
-                              </small>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {activeTab === "lookers" && (
                 <div>
                   <div className="alert alert-info mb-4" role="alert">
@@ -415,103 +338,19 @@ export default function AdminDashboard() {
                     registrados en el sistema. Puedes ver, editar, eliminar y
                     cambiar el estado de los tableros.
                   </div>
-                  <div className="mb-4">
-                    <button
-                      className="btn btn-info text-white"
-                      onClick={() => setActiveTab("create-looker")}
-                    >
-                      <i className="bi bi-plus-circle me-2"></i>
-                      Crear Nuevo Tablero
-                    </button>
-                  </div>
                   <LookersManager />
                 </div>
               )}
 
-              {activeTab === "create-looker" && (
+              {activeTab === "documents" && ( // Nueva sección de documentos
                 <div>
                   <div className="alert alert-info mb-4" role="alert">
                     <i className="bi bi-info-circle me-2"></i>
-                    Completa los datos para registrar un nuevo tablero de Looker
-                    Studio en el sistema.
+                    Aquí puedes gestionar todos los documentos registrados en el
+                    sistema. Puedes ver, editar, eliminar y cambiar el estado de
+                    los documentos.
                   </div>
-                  <div className="row">
-                    <div className="col-12 col-lg-8">
-                      <DashboardCreator onSuccess={handleDashboardSuccess} />
-                    </div>
-                    <div className="col-12 col-lg-4">
-                      <div className="card border-info">
-                        <div className="card-header bg-info text-white">
-                          <h6 className="mb-0">
-                            <i className="bi bi-lightbulb me-2"></i>
-                            Consejos para Tableros
-                          </h6>
-                        </div>
-                        <div className="card-body">
-                          <ul className="list-unstyled mb-0">
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Asegúrate de que el tablero tenga permisos de
-                                visualización públicos
-                              </small>
-                            </li>
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Usa la URL de embed si está disponible para
-                                mejor integración
-                              </small>
-                            </li>
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Agrega una miniatura para mejor experiencia
-                                visual
-                              </small>
-                            </li>
-                            <li className="mb-2">
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Especifica la fuente de datos para referencia
-                              </small>
-                            </li>
-                            <li>
-                              <small>
-                                <i className="bi bi-check-circle text-success me-2"></i>
-                                Indica la frecuencia de actualización del
-                                tablero
-                              </small>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                      <div className="card border-warning mt-3">
-                        <div className="card-header bg-warning text-dark">
-                          <h6 className="mb-0">
-                            <i className="bi bi-arrow-left-right me-2"></i>
-                            Navegación Rápida
-                          </h6>
-                        </div>
-                        <div className="card-body">
-                          <button
-                            className="btn btn-outline-info btn-sm w-100 mb-2"
-                            onClick={() => setActiveTab("lookers")}
-                          >
-                            <i className="bi bi-arrow-left me-2"></i>
-                            Volver a Tableros
-                          </button>
-                          <button
-                            className="btn btn-outline-primary btn-sm w-100"
-                            onClick={() => setActiveTab("create-form")}
-                          >
-                            <i className="bi bi-file-earmark-plus me-2"></i>
-                            Crear Formulario
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <DocumentsManager />
                 </div>
               )}
 
@@ -823,7 +662,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Otras estadísticas */}
+      {/* Otras estadísticas - ACTUALIZADO con documentos */}
       <div className="row mb-4">
         <div className="col-12">
           <div className="card border-0 shadow-sm">
@@ -902,6 +741,41 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="col-md-3 col-6">
+                  <div className="card bg-secondary text-white">
+                    {" "}
+                    {/* Color secundario para documentos */}
+                    <div className="card-body p-2">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 className="card-title mb-0">Documentos</h6>
+                          <h4 className="mb-0">
+                            {loadingStats ? (
+                              <div
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                              >
+                                <span className="visually-hidden">
+                                  Cargando...
+                                </span>
+                              </div>
+                            ) : (
+                              stats.documentsCount
+                            )}
+                          </h4>
+                        </div>
+                        <div>
+                          <i
+                            className="bi bi-files"
+                            style={{ fontSize: "1.5rem" }}
+                          ></i>
+                        </div>
+                      </div>
+                      <small className="d-block mt-1">Total en sistema</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-md-3 col-6">
                   <div className="card bg-success text-white">
                     <div className="card-body p-2">
                       <div className="d-flex justify-content-between align-items-center">
@@ -934,7 +808,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="col-md-3 col-6">
+                {/* Por ahora las invitaciones están en desuso y por eso no se muestran. */}
+                {/*
+                 <div className="col-md-3 col-6">
                   <div className="card bg-warning text-white">
                     <div className="card-body p-2">
                       <div className="d-flex justify-content-between align-items-center">
@@ -966,6 +842,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+                 */}
               </div>
             </div>
           </div>

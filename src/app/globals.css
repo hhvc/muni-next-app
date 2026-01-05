@@ -323,4 +323,86 @@ Clases para forzar estilos por tema dark o light
   border: 1px solid var(--border-color);
 }
 
+/* =========================================================
+   DOCUMENT CARD
+   ========================================================= */
 
+.document-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.document-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.document-card-title-container {
+  min-width: 0;
+}
+
+.document-card-title {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3; /* Propiedad estándar */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: calc(1.3em * 3);
+}
+
+.document-card-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3; /* Propiedad estándar */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-card-creator-name {
+  max-width: 100px;
+}
+
+.document-card-thumbnail {
+  height: 180px;
+  overflow: hidden;
+}
+
+.document-card-body {
+  padding: 1rem !important;
+}
+
+.document-card-header {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.document-card-icon {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+
+.document-card-badges {
+  margin-bottom: 1rem;
+}
+
+.document-card-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.document-card-creator {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.document-card-date,
+.document-card-size {
+  color: var(--muted-foreground);
+  display: block;
+}
