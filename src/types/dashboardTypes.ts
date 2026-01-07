@@ -10,7 +10,15 @@ export interface DashboardUser {
   role?: string; // Rol principal (para compatibilidad)
   roles?: string[]; // Array de roles (nuevo)
   primaryRole?: string; // Rol principal para UI
-  // Puedes añadir otros campos que guardes en el documento del usuario si son relevantes para el dashboard
+  displayName?: string; // Nombre para mostrar del usuario
+  photoURL?: string | null; // URL de la foto de perfil
+  createdAt?: Date | null; // Fecha de creación del usuario
+  lastLoginAt?: Date | null; // Fecha del último login
+  dni?: string; // DNI del usuario
+  invitationCode?: string; // Código de invitación usado
+  invitationDocId?: string; // ID del documento de invitación
+  loginHistory?: Date[]; // Historial de logins
+  updatedAt?: Date | null; // Fecha de última actualización
 }
 
 // --- Nueva interfaz para los datos personales ANIDADOS ---
@@ -79,6 +87,9 @@ export const ROLE_HIERARCHY = {
   collaborator: 60,
   pending_verification: 10,
   nuevo: 5,
+  viewer: 40, // Nuevos roles
+  editor: 50,
+  manager: 85,
 } as const;
 
 export type UserRole = keyof typeof ROLE_HIERARCHY;
@@ -94,3 +105,19 @@ export type WithRoles = {
   roles: string[];
   primaryRole?: string;
 };
+
+// Tipo para guardar las preferencias de usuario
+export interface UserPreferences {
+  theme?: "light" | "dark" | "auto";
+  language?: string;
+  notifications?: {
+    email: boolean;
+    push: boolean;
+    weeklyDigest: boolean;
+  };
+}
+
+// Tipo extendido para incluir preferencias
+export interface ExtendedDashboardUser extends DashboardUser {
+  preferences?: UserPreferences;
+}
