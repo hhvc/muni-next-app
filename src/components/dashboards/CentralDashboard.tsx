@@ -30,6 +30,15 @@ export default function CentralDashboard() {
   // Verificar si el usuario tiene permisos de administración
   const hasAdminAccess = ["admin", "root", "data"].includes(userRole || "");
 
+  // Verificar permisos para plantillas (mismos permisos que documentos)
+  const hasTemplateAccess = [
+    "admin",
+    "hr",
+    "root",
+    "data",
+    "collaborator",
+  ].includes(userRole || "");
+
   return (
     <div className="min-vh-100 py-4 central-dashboard">
       {/* Contenido principal */}
@@ -145,9 +154,7 @@ export default function CentralDashboard() {
                   title="Repositorio de Documentos"
                   description="Accede y gestiona documentos compartidos del área de datos"
                   action={
-                    ["admin", "hr", "root", "data", "collaborator"].includes(
-                      userRole || ""
-                    ) ? (
+                    hasTemplateAccess ? (
                       <button
                         className="btn btn-outline-secondary btn-sm"
                         onClick={() => router.push("/dashboard/documents")}
@@ -167,7 +174,37 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 6: Panel de Administración Datos (con ícono mejorado) */}
+              {/* Tarjeta 6: Plantillas de Documentos (NUEVA) */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <DashboardCard
+                  icon="📄"
+                  iconVariant="success"
+                  title="Plantillas de Documentos"
+                  description="Modelos preformateados para informes, reportes y documentos oficiales"
+                  action={
+                    hasTemplateAccess ? (
+                      <button
+                        className="btn btn-outline-success btn-sm"
+                        onClick={() =>
+                          router.push("/dashboard/document-templates")
+                        }
+                      >
+                        Acceder
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        disabled
+                        title="No tienes permisos para acceder a las plantillas"
+                      >
+                        No disponible
+                      </button>
+                    )
+                  }
+                />
+              </div>
+
+              {/* Tarjeta 7: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🖥️"

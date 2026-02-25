@@ -9,7 +9,7 @@ import HomePageContent from '@/components/HomePageContent'; // Importa el compon
 // Define el título y la descripción de la página para SEO y pestañas del navegador.
 export const metadata: Metadata = {
   title: 'Muni App | Inicio', // Un título más específico para esta página
-  description: 'Aplicación para gestión de empleados y administración.', // Descripción adecuada
+  description: 'Aplicación de uso interno.', // Descripción adecuada
   // Puedes añadir más metadatos aquí (keywords, openGraph, twitter, etc.)
 };
 
