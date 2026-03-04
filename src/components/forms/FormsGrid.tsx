@@ -3,7 +3,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  Timestamp,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import { FormMetadata } from "@/types/formTypes";
 import FormCard from "./FormCard";
@@ -58,7 +64,7 @@ export default function FormsGrid({
 
       return null;
     },
-    []
+    [],
   );
 
   const toSafeDate = useCallback((timestamp: unknown): Date | null => {
@@ -104,7 +110,14 @@ export default function FormsGrid({
       try {
         setLoading(true);
 
-        const snapshot = await getDocs(collection(db, "forms"));
+        const formsRef = collection(db, "forms");
+
+        const q = category
+          ? query(formsRef, where("category", "==", category))
+          : formsRef;
+
+        const snapshot = await getDocs(q);
+
         const currentRoles = userRoles ?? [];
         const formsData: FormMetadata[] = [];
 
@@ -130,7 +143,6 @@ export default function FormsGrid({
           };
 
           if (!showInactive && !form.isActive) return;
-          if (category && form.category !== category) return;
 
           const hasRoleAccess =
             !allowedRoles ||

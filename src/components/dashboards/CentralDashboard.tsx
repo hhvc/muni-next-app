@@ -31,12 +31,16 @@ export default function CentralDashboard() {
   const hasAdminAccess = ["admin", "root", "data"].includes(userRole || "");
 
   // Verificar permisos para plantillas (mismos permisos que documentos)
-  const hasTemplateAccess = [
+  const hasTemplateAccess = ["admin", "hr", "root", "data"].includes(
+    userRole || "",
+  );
+
+  const hasGuardiaUrbanaAccess = [
+    "root",
     "admin",
     "hr",
-    "root",
     "data",
-    "collaborator",
+    "guardiaurbana",
   ].includes(userRole || "");
 
   return (
@@ -91,7 +95,35 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 2: Tableros de Datos */}
+              {/* Tarjeta 2: Dashboard Guardia Urbana */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <DashboardCard
+                  icon="🚓"
+                  iconVariant="dark"
+                  title="Guardia Urbana"
+                  description="Panel de gestión y análisis específico para la Guardia Urbana"
+                  action={
+                    hasGuardiaUrbanaAccess ? (
+                      <button
+                        className="btn btn-outline-dark btn-sm"
+                        onClick={() => router.push("/dashboard/guardiaurbana")}
+                      >
+                        Acceder
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        disabled
+                        title="No tienes permisos para acceder a este dashboard"
+                      >
+                        No disponible
+                      </button>
+                    )
+                  }
+                />
+              </div>
+
+              {/* Tarjeta 3: Tableros de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📊"
@@ -109,7 +141,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 3: Formularios */}
+              {/* Tarjeta 4: Formularios */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📋"
@@ -127,7 +159,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 4: Sistemas de Gestión (Inactivo por ahora) */}
+              {/* Tarjeta 5: Sistemas de Gestión (Inactivo por ahora) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🔧"
@@ -146,7 +178,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 5: Repositorio de Documentos */}
+              {/* Tarjeta 6: Repositorio de Documentos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📚"
@@ -174,7 +206,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 6: Plantillas de Documentos (NUEVA) */}
+              {/* Tarjeta 7: Plantillas de Documentos (NUEVA) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📄"
@@ -204,7 +236,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 7: Panel de Administración Datos (con ícono mejorado) */}
+              {/* Tarjeta 8: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🖥️"

@@ -3,7 +3,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  Timestamp,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/firebase/clientApp";
 import { LookerDashboardMetadata } from "@/types/lookerTypes";
 import DashboardCard from "./DashboardCard";
@@ -62,7 +68,7 @@ export default function DashboardsGrid({
 
       return null;
     },
-    []
+    [],
   );
 
   /**
@@ -106,7 +112,13 @@ export default function DashboardsGrid({
         setLoading(true);
 
         const dashboardsRef = collection(db, "dashboards");
-        const querySnapshot = await getDocs(dashboardsRef);
+
+        const q = category
+          ? query(dashboardsRef, where("category", "==", category))
+          : dashboardsRef;
+
+        const querySnapshot = await getDocs(q);
+
         const dashboardsData: LookerDashboardMetadata[] = [];
 
         const currentUserRoles = userRoles || [];
@@ -115,7 +127,7 @@ export default function DashboardsGrid({
           const data = doc.data();
 
           const normalizedAllowedRoles = normalizeAllowedRoles(
-            data.allowedRoles
+            data.allowedRoles,
           );
 
           const dashboard: LookerDashboardMetadata = {
@@ -140,7 +152,6 @@ export default function DashboardsGrid({
           };
 
           if (!showInactive && !dashboard.isActive) return;
-          if (category && dashboard.category !== category) return;
 
           const shouldShowDashboard = () => {
             if (
@@ -152,7 +163,7 @@ export default function DashboardsGrid({
 
             if (currentUserRoles.length > 0) {
               return currentUserRoles.some((role: string) =>
-                dashboard.allowedRoles?.includes(role)
+                dashboard.allowedRoles?.includes(role),
               );
             }
 
@@ -181,13 +192,13 @@ export default function DashboardsGrid({
 
         if (firebaseError.code === "failed-precondition") {
           setError(
-            "Error de configuración en la base de datos. Contacta al administrador."
+            "Error de configuración en la base de datos. Contacta al administrador.",
           );
         } else {
           setError(
             `No se pudieron cargar los tableros: ${
               firebaseError.message || "Error desconocido"
-            }`
+            }`,
           );
         }
       } finally {
