@@ -99,13 +99,13 @@ export default function CentralDashboard() {
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🚓"
-                  iconVariant="dark"
+                  iconVariant="red"
                   title="Guardia Urbana"
                   description="Panel de gestión y análisis específico para la Guardia Urbana"
                   action={
                     hasGuardiaUrbanaAccess ? (
                       <button
-                        className="btn btn-outline-dark btn-sm"
+                        className="btn btn-outline-red btn-sm"
                         onClick={() => router.push("/dashboard/guardiaurbana")}
                       >
                         Acceder

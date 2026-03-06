@@ -238,6 +238,10 @@ html[data-theme="light"] .themed-select {
   background-color: #6f42c1;
 }
 
+.dashboard-icon-red {
+  background-color: #fc0202;
+}
+
 .dashboard-icon-primary {
   background-color: var(--bs-primary);
 }
@@ -307,6 +311,15 @@ Estilos CSS para hover effects (usado en tarjetas de Central Dashboard)
   color: white;
   background-color: #6f42c1;
   border-color: #6f42c1;
+}
+.btn-outline-red {
+  color: #fc0202;
+  border-color: #fc0202;
+}
+.btn-outline-red:hover {
+  color: white;
+  background-color: #fc0202;
+  border-color: #fc0202;
 }
 
 /* =========================================================

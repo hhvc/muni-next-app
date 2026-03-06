@@ -12,7 +12,8 @@ type DashboardCardProps = {
     | "success"
     | "warning"
     | "secondary"
-    | "dark";
+    | "dark"
+    | "red";
   title: string;
   description: string;
   action?: ReactNode;
