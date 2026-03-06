@@ -20,6 +20,8 @@ export default function CentralDashboard() {
         return "/dashboard/collaborator";
       case "data":
         return "/dashboard/data";
+      case "guardiaurbana":
+        return "/dashboard/guardiaurbana";
       default:
         return "/dashboard/root";
     }

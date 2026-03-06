@@ -14,7 +14,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 const STANDALONE_PAGES = ["/", "/candidate"];
 
 // Definir roles autorizados y no autorizados
-const authorizedRoles = ["root", "admin", "hr", "data", "collaborator"];
+const authorizedRoles = ["root", "admin", "hr", "data", "collaborator", "guardiaurbana"];
 const unauthorizedRoles = ["nuevo", "", "Sin rol", "pending_verification"];
 
 export function AuthRouter({ children }: { children: React.ReactNode }) {

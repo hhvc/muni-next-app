@@ -166,6 +166,8 @@ export default function PerfilPage() {
         return "info";
       case "collaborator":
         return "success";
+      case "guardiaurbana":
+        return "dark";
       case "pending_verification":
         return "secondary";
       default:
@@ -359,7 +361,7 @@ export default function PerfilPage() {
                         <div className="d-flex align-items-center gap-2">
                           <span
                             className={`badge bg-${getRoleBadgeColor(
-                              userProfile.primaryRole
+                              userProfile.primaryRole,
                             )} fs-6`}
                           >
                             {userProfile.primaryRole}
@@ -434,7 +436,7 @@ export default function PerfilPage() {
                             <span
                               key={index}
                               className={`badge bg-${getRoleBadgeColor(
-                                role
+                                role,
                               )} d-flex align-items-center gap-1`}
                             >
                               {role}
@@ -475,7 +477,8 @@ export default function PerfilPage() {
                         </p>
                         <ul className="small mb-0">
                           <li>
-                            Define la interfaz o dashboard que verás por defecto al ingresar
+                            Define la interfaz o dashboard que verás por defecto
+                            al ingresar
                           </li>
                           <li>
                             Puedes cambiarlo si tienes múltiples roles asignados
