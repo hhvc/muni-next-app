@@ -1,9 +1,8 @@
 /* src/components/lookers/DashboardCard.tsx */
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import DashboardThumbnail from "@/components/lookers/DashboardThumbnail";
 
 interface DashboardCardProps {
   id?: string;
@@ -27,30 +26,6 @@ interface DashboardCardProps {
   showThumbnail?: boolean;
 }
 
-/* =========================
-   Utils
-   ========================= */
-
-// Convierte URLs de Google Drive a URLs directas
-const convertGoogleDriveUrl = (url: string): string => {
-  if (!url) return "";
-
-  if (url.includes("uc?export=view")) return url;
-
-  if (url.includes("drive.google.com/file/d/")) {
-    const match = url.match(/\/d\/([^\/]+)/);
-    if (match?.[1]) {
-      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-    }
-  }
-
-  return url;
-};
-
-/* =========================
-   Component
-   ========================= */
-
 export default function DashboardCard({
   title,
   description,
@@ -64,12 +39,6 @@ export default function DashboardCard({
 }: DashboardCardProps) {
   const urlToUse = embedUrl || dashboardUrl;
 
-  const processedThumbnailUrl = thumbnailUrl
-    ? convertGoogleDriveUrl(thumbnailUrl)
-    : null;
-
-  const [imageError, setImageError] = useState(false);
-
   const badgeColors: Record<string, string> = {
     primary: "bg-primary text-white",
     secondary: "bg-secondary text-white",
@@ -78,21 +47,6 @@ export default function DashboardCard({
     warning: "bg-warning text-dark",
     info: "bg-info text-white",
   };
-
-  const ThumbnailFallback = () => (
-    <div className="w-100 h-100 d-flex align-items-center justify-content-center placeholder-bg">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="64"
-        height="64"
-        fill="currentColor"
-        className="bi bi-bar-chart-line text-muted"
-        viewBox="0 0 16 16"
-      >
-        <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2z" />
-      </svg>
-    </div>
-  );
 
   return (
     <div className="card h-100 border-0 shadow-sm dashboard-card">
@@ -103,32 +57,23 @@ export default function DashboardCard({
       >
         {/* =========================
             Thumbnail
-           ========================= */}
+        ========================= */}
         {showThumbnail && (
           <div
             className="card-img-top position-relative"
             style={{ height: "180px", overflow: "hidden" }}
           >
-            {!processedThumbnailUrl || imageError ? (
-              <ThumbnailFallback />
-            ) : (
-              <Image
-                src={processedThumbnailUrl}
-                alt={title}
-                fill
-                sizes="(max-width: 768px) 100vw,
-                       (max-width: 1200px) 50vw,
-                       33vw"
-                style={{ objectFit: "cover" }}
-                onError={() => setImageError(true)}
-              />
-            )}
+            <DashboardThumbnail
+              title={title}
+              thumbnailUrl={thumbnailUrl}
+              fillContainer
+            />
           </div>
         )}
 
         {/* =========================
             Card body
-           ========================= */}
+        ========================= */}
         <div className="card-body d-flex flex-column p-4">
           {/* Header */}
           <div className="d-flex align-items-start mb-3">

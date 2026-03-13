@@ -16,15 +16,20 @@ import DashboardCard from "./DashboardCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface DashboardsGridProps {
+  /** Nuevo modelo (arquitectura limpia) */
+  dashboards?: LookerDashboardMetadata[];
+
+  /** Compatibilidad con implementación anterior */
   category?: string;
   showInactive?: boolean;
+
+  /** Control externo opcional */
+  showAll?: boolean;
+  onToggleShowAll?: () => void;
 }
 
 /**
  * Contenedor responsivo para grilla de tarjetas
- * - Mobile: 1 columna
- * - Desktop común: 2 columnas
- * - Pantallas XL: 3 columnas
  */
 function DashboardsGridContainer({ children }: { children: React.ReactNode }) {
   return (
@@ -35,12 +40,19 @@ function DashboardsGridContainer({ children }: { children: React.ReactNode }) {
 }
 
 export default function DashboardsGrid({
+  dashboards: externalDashboards,
   category,
   showInactive = false,
+  showAll = true,
+  onToggleShowAll,
 }: DashboardsGridProps) {
   const { user, userRoles } = useAuth();
-  const [dashboards, setDashboards] = useState<LookerDashboardMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [dashboards, setDashboards] = useState<LookerDashboardMetadata[]>(
+    externalDashboards || [],
+  );
+
+  const [loading, setLoading] = useState(!externalDashboards);
   const [error, setError] = useState("");
 
   /**
@@ -90,6 +102,7 @@ export default function DashboardsGrid({
       seconds?: number;
       nanoseconds?: number;
     };
+
     if (timestampWithSeconds.seconds) {
       return new Date(timestampWithSeconds.seconds * 1000);
     }
@@ -101,7 +114,16 @@ export default function DashboardsGrid({
     return order || 0;
   }, []);
 
+  /**
+   * Si los dashboards vienen por props → no consultamos Firestore
+   */
   useEffect(() => {
+    if (externalDashboards) {
+      setDashboards(externalDashboards);
+      setLoading(false);
+      return;
+    }
+
     const fetchDashboards = async () => {
       if (!user) {
         setLoading(false);
@@ -180,6 +202,7 @@ export default function DashboardsGrid({
           const orderB = getOrderValue(b.order);
 
           if (orderA !== orderB) return orderA - orderB;
+
           return (a.title || "").localeCompare(b.title || "");
         });
 
@@ -209,6 +232,7 @@ export default function DashboardsGrid({
     const timer = setTimeout(fetchDashboards, 100);
     return () => clearTimeout(timer);
   }, [
+    externalDashboards,
     user,
     userRoles,
     category,
@@ -268,6 +292,8 @@ export default function DashboardsGrid({
      Render principal
      ========================= */
 
+  const dashboardsToShow = showAll ? dashboards : dashboards.slice(0, 6);
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -277,13 +303,25 @@ export default function DashboardsGrid({
             <span className="badge bg-info">Categoría: {category}</span>
           )}
         </div>
-        <small className="dashboards-count">
-          {dashboards.length} tablero(s)
-        </small>
+
+        <div className="d-flex align-items-center gap-3">
+          <small className="dashboards-count">
+            {dashboards.length} tablero(s)
+          </small>
+
+          {dashboards.length > 6 && onToggleShowAll && (
+            <button
+              className="btn btn-outline-theme btn-sm"
+              onClick={onToggleShowAll}
+            >
+              {showAll ? "Ver menos" : "Ver todos"}
+            </button>
+          )}
+        </div>
       </div>
 
       <DashboardsGridContainer>
-        {dashboards.map((dashboard) => (
+        {dashboardsToShow.map((dashboard) => (
           <div className="col" key={dashboard.id}>
             <DashboardCard
               title={dashboard.title}

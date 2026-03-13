@@ -14,9 +14,9 @@ import {
 import { db } from "@/firebase/clientApp";
 import { LookerDashboardMetadata } from "@/types/lookerTypes";
 import DashboardCreator from "@/components/lookers/DashboardCreator";
-import DashboardCard from "@/components/lookers/DashboardCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import Image from "next/image";
+import DashboardsTable from "@/components/lookers/DashboardsTable";
+import DashboardsGrid from "@/components/lookers/DashboardsGrid";
 
 type ManagerView = "view" | "create" | "edit";
 
@@ -29,20 +29,16 @@ export default function LookersManager() {
   const [error, setError] = useState("");
   const [selectedDashboard, setSelectedDashboard] =
     useState<LookerDashboardMetadata | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
-  );
   const [showAllDashboards, setShowAllDashboards] = useState(false); // <-- Nuevo estado
 
   // Verificar permisos para crear tableros
-  const canCreateDashboards = userRoles?.some((role) =>
-    ["admin", "hr", "root", "data"].includes(role)
-  );
+  const canCreateDashboards =
+    userRoles?.some((role) => ["admin", "hr", "root", "data"].includes(role)) ??
+    false;
 
   // Verificar permisos para editar/eliminar tableros
-  const canEditDashboards = userRoles?.some((role) =>
-    ["admin", "root"].includes(role)
-  );
+  const canEditDashboards =
+    userRoles?.some((role) => ["admin", "root"].includes(role)) ?? false;
 
   // Función para normalizar allowedRoles
   const normalizeAllowedRoles = useCallback(
@@ -67,7 +63,7 @@ export default function LookersManager() {
 
       return null;
     },
-    []
+    [],
   );
 
   // Función para convertir Firestore Timestamp a Date
@@ -148,7 +144,7 @@ export default function LookersManager() {
       setError(
         `Error al cargar tableros: ${
           firebaseError.message || "Error desconocido"
-        }`
+        }`,
       );
     } finally {
       setLoading(false);
@@ -190,7 +186,6 @@ export default function LookersManager() {
     try {
       await deleteDoc(doc(db, "dashboards", dashboardId));
       setRefreshKey((prev) => prev + 1);
-      setShowDeleteConfirm(null);
       setError("");
     } catch (err) {
       console.error("❌ Error al eliminar tablero:", err);
@@ -198,14 +193,14 @@ export default function LookersManager() {
       setError(
         `Error al eliminar tablero: ${
           firebaseError.message || "Error desconocido"
-        }`
+        }`,
       );
     }
   };
 
   // Manejar activación/desactivación de tablero
   const handleToggleDashboardStatus = async (
-    dashboard: LookerDashboardMetadata
+    dashboard: LookerDashboardMetadata,
   ) => {
     if (!canEditDashboards || !dashboard.id) {
       setError("No tienes permisos para editar tableros");
@@ -225,7 +220,7 @@ export default function LookersManager() {
       setError(
         `Error al cambiar estado: ${
           firebaseError.message || "Error desconocido"
-        }`
+        }`,
       );
     }
   };
@@ -358,8 +353,8 @@ export default function LookersManager() {
                               new Set(
                                 dashboards
                                   .map((d) => d.category)
-                                  .filter(Boolean)
-                              )
+                                  .filter(Boolean),
+                              ),
                             ).length
                           }
                         </h3>
@@ -373,7 +368,8 @@ export default function LookersManager() {
                         <h3 className="mb-0">
                           {
                             dashboards.filter(
-                              (d) => d.allowedRoles && d.allowedRoles.length > 0
+                              (d) =>
+                                d.allowedRoles && d.allowedRoles.length > 0,
                             ).length
                           }
                         </h3>
@@ -384,286 +380,17 @@ export default function LookersManager() {
                 </div>
 
                 {/* Tabla de tableros */}
-                <div className="card border-0 shadow-sm">
-                  <div className="card-header bg-info text-white">
-                    <h5 className="mb-0">
-                      <i className="bi bi-bar-chart-line me-2"></i>
-                      Lista de Tableros
-                    </h5>
-                  </div>
-                  <div className="card-body p-0">
-                    <div className="table-responsive">
-                      <table className="table table-hover mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Tablero</th>
-                            <th>Categoría</th>
-                            <th>Estado</th>
-                            <th>Creado</th>
-                            <th>Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dashboards.map((dashboard) => (
-                            <tr key={dashboard.id}>
-                              <td>
-                                <div className="d-flex align-items-center">
-                                  {dashboard.thumbnailUrl ? (
-                                    <div
-                                      className="rounded me-3"
-                                      style={{
-                                        position: "relative",
-                                        width: "40px",
-                                        height: "40px",
-                                      }}
-                                    >
-                                      {dashboard.thumbnailUrl ? (
-                                        <Image
-                                          src={dashboard.thumbnailUrl}
-                                          alt={dashboard.title}
-                                          fill
-                                          sizes="40px"
-                                          className="rounded"
-                                          style={{
-                                            objectFit: "cover",
-                                          }}
-                                          unoptimized={
-                                            process.env.NODE_ENV !==
-                                            "production"
-                                          }
-                                        />
-                                      ) : (
-                                        <div className="w-100 h-100 bg-secondary d-flex align-items-center justify-content-center rounded">
-                                          <i className="bi bi-bar-chart-line text-white"></i>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div
-                                      className="rounded bg-secondary d-flex align-items-center justify-content-center me-3"
-                                      style={{ width: "40px", height: "40px" }}
-                                    >
-                                      <i className="bi bi-bar-chart-line text-white"></i>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <strong>{dashboard.title}</strong>
-                                    {dashboard.description && (
-                                      <div className="text-muted small">
-                                        {dashboard.description.length > 60
-                                          ? `${dashboard.description.substring(
-                                              0,
-                                              60
-                                            )}...`
-                                          : dashboard.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                {dashboard.category ? (
-                                  <span className="badge bg-info">
-                                    {dashboard.category}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted">
-                                    Sin categoría
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                {dashboard.isActive ? (
-                                  <span className="badge bg-success">
-                                    <i className="bi bi-check-circle me-1"></i>
-                                    Activo
-                                  </span>
-                                ) : (
-                                  <span className="badge bg-secondary">
-                                    <i className="bi bi-x-circle me-1"></i>
-                                    Inactivo
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                <small className="text-muted">
-                                  {formatDate(dashboard.createdAt)}
-                                </small>
-                              </td>
-                              <td>
-                                <div className="d-flex flex-wrap gap-2">
-                                  <a
-                                    href={
-                                      dashboard.embedUrl ||
-                                      dashboard.dashboardUrl
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn btn-sm btn-outline-primary d-flex align-items-center"
-                                    title="Ver tablero"
-                                  >
-                                    <i className="bi bi-eye me-1"></i>
-                                    Ver
-                                  </a>
-                                  {canEditDashboards && (
-                                    <>
-                                      <button
-                                        className="btn btn-sm btn-outline-info d-flex align-items-center"
-                                        onClick={() =>
-                                          handleEditDashboard(dashboard)
-                                        }
-                                        title="Editar tablero"
-                                      >
-                                        <i className="bi bi-pencil me-1"></i>
-                                        Editar
-                                      </button>
-                                      <button
-                                        className="btn btn-sm btn-outline-warning d-flex align-items-center"
-                                        onClick={() =>
-                                          handleToggleDashboardStatus(dashboard)
-                                        }
-                                        title={
-                                          dashboard.isActive
-                                            ? "Desactivar tablero"
-                                            : "Activar tablero"
-                                        }
-                                      >
-                                        {dashboard.isActive ? (
-                                          <>
-                                            <i className="bi bi-pause me-1"></i>
-                                            Desactivar
-                                          </>
-                                        ) : (
-                                          <>
-                                            <i className="bi bi-play me-1"></i>
-                                            Activar
-                                          </>
-                                        )}
-                                      </button>
-                                      <button
-                                        className="btn btn-sm btn-outline-danger d-flex align-items-center"
-                                        onClick={() =>
-                                          setShowDeleteConfirm(
-                                            dashboard.id || null
-                                          )
-                                        }
-                                        title="Eliminar tablero"
-                                      >
-                                        <i className="bi bi-trash me-1"></i>
-                                        Eliminar
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-
-                                {/* Modal de confirmación de eliminación */}
-                                {showDeleteConfirm === dashboard.id && (
-                                  <div
-                                    className="modal fade show d-block"
-                                    style={{ background: "rgba(0,0,0,0.5)" }}
-                                    tabIndex={-1}
-                                  >
-                                    <div className="modal-dialog modal-dialog-centered">
-                                      <div className="modal-content">
-                                        <div className="modal-header bg-danger text-white">
-                                          <h5 className="modal-title">
-                                            <i className="bi bi-exclamation-triangle me-2"></i>
-                                            Confirmar Eliminación
-                                          </h5>
-                                        </div>
-                                        <div className="modal-body">
-                                          <p>
-                                            ¿Estás seguro de que deseas eliminar
-                                            el tablero{" "}
-                                            <strong>{dashboard.title}</strong>?
-                                          </p>
-                                          <p className="text-danger">
-                                            <i className="bi bi-exclamation-circle me-1"></i>
-                                            Esta acción no se puede deshacer.
-                                          </p>
-                                        </div>
-                                        <div className="modal-footer">
-                                          <button
-                                            type="button"
-                                            className="btn btn-outline-secondary d-flex align-items-center"
-                                            onClick={() =>
-                                              setShowDeleteConfirm(null)
-                                            }
-                                          >
-                                            <i className="bi bi-x-circle me-1"></i>
-                                            Cancelar
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="btn btn-danger d-flex align-items-center"
-                                            onClick={() =>
-                                              dashboard.id &&
-                                              handleDeleteDashboard(
-                                                dashboard.id
-                                              )
-                                            }
-                                          >
-                                            <i className="bi bi-trash me-1"></i>
-                                            Confirmar Eliminación
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div className="card-footer  themed-surface">
-                    <small className="text-muted">
-                      Mostrando {dashboards.length} tablero(s)
-                    </small>
-                  </div>
-                </div>
+                <DashboardsTable
+                  dashboards={dashboards}
+                  canEditDashboards={canEditDashboards}
+                  formatDate={formatDate}
+                  onEdit={handleEditDashboard}
+                  onToggleStatus={handleToggleDashboardStatus}
+                  onDelete={handleDeleteDashboard}
+                />
 
                 {/* Vista en grid (opcional) */}
-                <div className="mt-4">
-                  <h5 className="mb-3">
-                    <i className="bi bi-grid-3x3-gap me-2"></i>
-                    Vista Previa
-                  </h5>
-                  <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                    {(showAllDashboards
-                      ? dashboards
-                      : dashboards.slice(0, 6)
-                    ).map((dashboard) => (
-                      <div key={dashboard.id} className="col">
-                        <DashboardCard
-                          title={dashboard.title}
-                          description={dashboard.description || undefined}
-                          dashboardUrl={dashboard.dashboardUrl}
-                          embedUrl={dashboard.embedUrl || undefined}
-                          thumbnailUrl={dashboard.thumbnailUrl || undefined}
-                          badge={dashboard.category || undefined}
-                          badgeColor="info"
-                          target="_blank"
-                          showThumbnail={true}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {dashboards.length > 6 && (
-                    <div className="text-center mt-3">
-                      <button
-                        className="btn btn-outline-info btn-sm"
-                        onClick={() => setShowAllDashboards(!showAllDashboards)}
-                      >
-                        {showAllDashboards
-                          ? "Ver menos"
-                          : `Ver todos los tableros (${dashboards.length})`}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <DashboardsGrid />
               </div>
             )}
           </div>
