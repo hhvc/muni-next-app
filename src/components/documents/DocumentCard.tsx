@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Timestamp } from "firebase/firestore";
 
 interface DocumentCardProps {
   id?: string;
@@ -14,7 +15,7 @@ interface DocumentCardProps {
   category?: string;
   creator?: string;
   tags?: string[];
-  createdAt?: Date;
+  createdAt?: Date | Timestamp;
   fileType?: string;
   fileSize?: string;
   badge?: string;
@@ -233,7 +234,11 @@ export default function DocumentCard({
               <div className="text-end">
                 {createdAt && (
                   <small className="text-muted d-block document-card-date">
-                    {formatDate(createdAt)}
+                    {formatDate(
+                      createdAt instanceof Date
+                        ? createdAt
+                        : createdAt.toDate(),
+                    )}
                   </small>
                 )}
                 {fileSize && (

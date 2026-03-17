@@ -18,6 +18,13 @@ import DocumentForm from "./DocumentForm";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Image from "next/image";
 
+const toDate = (date: Date | Timestamp): Date => {
+  if (date instanceof Timestamp) {
+    return date.toDate();
+  }
+  return date;
+};
+
 type ManagerView = "view" | "create" | "edit";
 
 // Función para obtener icono según tipo de archivo (la misma que en DocumentCard)
@@ -47,17 +54,17 @@ export default function DocumentsManager() {
   const [selectedDocument, setSelectedDocument] =
     useState<DocumentMetadata | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
+    null,
   );
   const [showAllDocuments, setShowAllDocuments] = useState(false);
 
   // Verificar permisos
   const canManageDocuments = userRoles?.some((role) =>
-    ["admin", "hr", "root", "data"].includes(role)
+    ["admin", "hr", "root", "data"].includes(role),
   );
 
   const canEditDocuments = userRoles?.some((role) =>
-    ["admin", "root"].includes(role)
+    ["admin", "root"].includes(role),
   );
 
   // Cargar documentos
@@ -99,7 +106,9 @@ export default function DocumentsManager() {
       });
 
       // Ordenar por fecha de creación descendente
-      docsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      docsData.sort(
+        (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime(),
+      );
 
       setDocuments(docsData);
       setError("");
@@ -136,7 +145,7 @@ export default function DocumentsManager() {
         return fileTypeLower.includes(searchType);
       }).length;
     },
-    [documents]
+    [documents],
   );
 
   // Manejar éxito en creación/edición
@@ -349,8 +358,10 @@ export default function DocumentsManager() {
                           {
                             Array.from(
                               new Set(
-                                documents.map((d) => d.category).filter(Boolean)
-                              )
+                                documents
+                                  .map((d) => d.category)
+                                  .filter(Boolean),
+                              ),
                             ).length
                           }
                         </h3>
@@ -485,7 +496,7 @@ export default function DocumentsManager() {
                                       >
                                         <i
                                           className={`bi ${getFileIcon(
-                                            doc.fileType
+                                            doc.fileType,
                                           )} text-white`}
                                         ></i>
                                       </div>
@@ -511,7 +522,7 @@ export default function DocumentsManager() {
                                 <td>{doc.creator}</td>
                                 <td>
                                   <small className="text-muted">
-                                    {formatDate(doc.createdAt)}
+                                    {formatDate(toDate(doc.createdAt))}
                                   </small>
                                 </td>
                                 <td>
@@ -744,7 +755,7 @@ export default function DocumentsManager() {
                         <strong>{selectedDocument.title}</strong>
                       </p>
                       <p className="small text-muted">
-                        Creado: {formatDate(selectedDocument.createdAt)}
+                        Creado: {formatDate(toDate(selectedDocument.createdAt))}
                       </p>
                       <button
                         className="btn btn-outline-secondary btn-sm w-100"

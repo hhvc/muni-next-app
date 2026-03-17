@@ -99,6 +99,9 @@ export interface RequirementData {
   tipo?: RequirementType;
   detalle?: string;
 
+  // Documentos asociados
+  documents?: string[];
+
   // Metadatos
   updatedAt?: Date;
   isActive: boolean;

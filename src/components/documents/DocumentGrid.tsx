@@ -65,7 +65,7 @@ export default function DocumentGrid({
 
       return null;
     },
-    []
+    [],
   );
 
   /**
@@ -116,14 +116,14 @@ export default function DocumentGrid({
       // Si el usuario tiene roles, verificar si alguno coincide
       if (currentUserRoles.length > 0) {
         return currentUserRoles.some((role: string) =>
-          allowedRoles.includes(role)
+          allowedRoles.includes(role),
         );
       }
 
       // Usuario sin roles definidos
       return false;
     },
-    [userRoles]
+    [userRoles],
   );
 
   useEffect(() => {
@@ -144,7 +144,7 @@ export default function DocumentGrid({
           const data = doc.data();
 
           const normalizedAllowedRoles = normalizeAllowedRoles(
-            data.allowedRoles
+            data.allowedRoles,
           );
 
           const document: DocumentMetadata = {
@@ -187,8 +187,9 @@ export default function DocumentGrid({
           if (orderA !== orderB) return orderA - orderB;
 
           // Luego por fecha de creación (más recientes primero)
-          const dateA = a.createdAt?.getTime() || 0;
-          const dateB = b.createdAt?.getTime() || 0;
+          const dateA = toSafeDate(a.createdAt)?.getTime() || 0;
+          const dateB = toSafeDate(b.createdAt)?.getTime() || 0;
+
           return dateB - dateA;
         });
 
@@ -205,13 +206,13 @@ export default function DocumentGrid({
 
         if (firebaseError.code === "failed-precondition") {
           setError(
-            "Error de configuración en la base de datos. Contacta al administrador."
+            "Error de configuración en la base de datos. Contacta al administrador.",
           );
         } else {
           setError(
             `No se pudieron cargar los documentos: ${
               firebaseError.message || "Error desconocido"
-            }`
+            }`,
           );
         }
       } finally {

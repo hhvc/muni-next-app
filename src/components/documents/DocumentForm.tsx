@@ -1,4 +1,4 @@
-/* src/components/documents/DocumentForm.tsx - VERSIÓN CORREGIDA */
+/* src/components/documents/DocumentForm.tsx */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -9,6 +9,7 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  arrayUnion,
 } from "firebase/firestore";
 import {
   ref,
@@ -24,6 +25,8 @@ interface DocumentFormProps {
   onSuccess?: () => void;
   documentToEdit?: DocumentMetadata | null;
   onCancel?: () => void;
+  relatedRequirementId?: string;
+  relatedRequirementTitle?: string;
 }
 
 // Tipos de archivo permitidos y sus MIME types
@@ -61,6 +64,8 @@ export default function DocumentForm({
   onSuccess,
   documentToEdit,
   onCancel,
+  relatedRequirementId,
+  relatedRequirementTitle,
 }: DocumentFormProps) {
   const { user, userRoles } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -68,6 +73,7 @@ export default function DocumentForm({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
+  const isRequirementDocument = !!relatedRequirementId;
 
   // Estados para el formulario
   const [title, setTitle] = useState("");
@@ -159,8 +165,8 @@ export default function DocumentForm({
     if (selectedFile.size > MAX_FILE_SIZE) {
       setError(
         `El archivo es demasiado grande. Máximo: ${formatFileSize(
-          MAX_FILE_SIZE
-        )}`
+          MAX_FILE_SIZE,
+        )}`,
       );
       e.target.value = "";
       return;
@@ -265,7 +271,7 @@ export default function DocumentForm({
   const uploadFileToStorage = async (
     file: File,
     folder: string,
-    fileName: string
+    fileName: string,
   ): Promise<string> => {
     try {
       if (!storage) {
@@ -279,7 +285,7 @@ export default function DocumentForm({
         .toLowerCase();
       const uniqueFileName = `${sanitizedFileName}_${timestamp}_${file.name.replace(
         /[^a-z0-9.]/gi,
-        "_"
+        "_",
       )}`;
       const storageRef = ref(storage, `${folder}/${uniqueFileName}`);
 
@@ -307,7 +313,7 @@ export default function DocumentForm({
       // Extraer path de la URL de Storage
       const urlObj = new URL(url);
       const path = decodeURIComponent(
-        urlObj.pathname.split("/o/")[1].split("?")[0]
+        urlObj.pathname.split("/o/")[1].split("?")[0],
       );
       const fileRef = ref(storage, path);
 
@@ -398,7 +404,7 @@ export default function DocumentForm({
         thumbnailUrl = await uploadFileToStorage(
           thumbnailFile,
           "thumbnails",
-          `${title}_thumbnail`
+          `${title}_thumbnail`,
         );
         setUploadProgress(80);
       } else if (isEditMode && documentToEdit?.thumbnailUrl) {
@@ -422,6 +428,7 @@ export default function DocumentForm({
         isActive: true,
         allowedRoles: normalizedAllowedRoles || undefined,
         order: order || 0,
+        relatedRequirementId: relatedRequirementId || undefined,
       };
 
       console.log("📤 Datos del documento a guardar:", documentData);
@@ -439,7 +446,7 @@ export default function DocumentForm({
         console.log("🔄 Actualizando documento existente:", documentToEdit.id);
         await updateDoc(
           doc(db, "documents", documentToEdit.id),
-          documentToSave
+          documentToSave,
         );
 
         // Si se subió un nuevo archivo, eliminar el anterior
@@ -467,8 +474,15 @@ export default function DocumentForm({
         console.log("💾 Guardando nuevo documento...");
         const docRef = await addDoc(
           collection(db, "documents"),
-          documentToSave
+          documentToSave,
         );
+
+        // 🔗 Vincular documento al requerimiento (si corresponde)
+        if (relatedRequirementId) {
+          await updateDoc(doc(db, "requirements", relatedRequirementId), {
+            documents: arrayUnion(docRef.id),
+          });
+        }
 
         console.log("✅ Documento guardado con ID:", docRef.id);
         setSuccess("Documento registrado exitosamente");
@@ -489,7 +503,7 @@ export default function DocumentForm({
 
       if (errorMessage.includes("permission-denied")) {
         setError(
-          "No tienes permisos para subir documentos. Contacta al administrador."
+          "No tienes permisos para subir documentos. Contacta al administrador.",
         );
       } else if (errorMessage.includes("storage/unauthorized")) {
         setError("No tienes permisos para acceder a Firebase Storage.");
@@ -597,6 +611,20 @@ export default function DocumentForm({
           )}
 
           <div className="row">
+            {/* Documento asociado a requerimiento */}
+            {isRequirementDocument && (
+              <div className="col-12 mb-3">
+                <div className="alert alert-info py-2 mb-0">
+                  <i className="bi bi-link-45deg me-2"></i>
+                  Este documento quedará asociado al requerimiento{" "}
+                  <strong>
+                    {relatedRequirementId}
+                    {relatedRequirementTitle && ` — ${relatedRequirementTitle}`}
+                  </strong>
+                  .
+                </div>
+              </div>
+            )}
             {/* Título */}
             <div className="col-md-8 mb-3">
               <label htmlFor="title" className="form-label">

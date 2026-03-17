@@ -23,6 +23,7 @@ import {
 } from "@/types/requirementTypes";
 import Seguimiento from "./Seguimiento";
 import HistorialCambios from "./HistorialCambios";
+import DocumentForm from "@/components/documents/DocumentForm";
 
 interface RequirementDetailProps {
   requirement: RequirementData & { id: string };
@@ -64,7 +65,7 @@ const importancias = [
 // Función para obtener etiqueta de opción
 const getOptionLabel = (
   value: string,
-  options: Array<{ value: string; label: string }>
+  options: Array<{ value: string; label: string }>,
 ) => {
   const option = options.find((opt) => opt.value === value);
   return option ? option.label : value;
@@ -91,14 +92,14 @@ export default function RequirementDetail({
   const { user } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [estado, setEstado] = useState<RequirementStatus>(
-    requirement.estado || "inicial"
+    requirement.estado || "inicial",
   );
   const [prioridad, setPrioridad] = useState<Priority>(
-    requirement.prioridad || "no_asignada"
+    requirement.prioridad || "no_asignada",
   );
   const [asignadoA, setAsignadoA] = useState(requirement.asignadoA || []);
   const [observaciones, setObservaciones] = useState(
-    requirement.comentarios || ""
+    requirement.comentarios || "",
   );
   const [nuevaObservacion, setNuevaObservacion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,8 +107,11 @@ export default function RequirementDetail({
   const [success, setSuccess] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [dashboardInfo, setDashboardInfo] = useState<{ title: string } | null>(
-    null
+    null,
   );
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [showDocumentForm, setShowDocumentForm] = useState(false);
 
   // Cargar usuarios para asignación
   useEffect(() => {
@@ -116,7 +120,7 @@ export default function RequirementDetail({
         const usersRef = collection(db, "users");
         const q = query(
           usersRef,
-          where("roles", "array-contains-any", ["admin", "root", "data", "hr"])
+          where("roles", "array-contains-any", ["admin", "root", "data", "hr"]),
         );
         const querySnapshot = await getDocs(q);
         const usersData: any[] = [];
@@ -145,7 +149,7 @@ export default function RequirementDetail({
       if (requirement.dashboardReferencia) {
         try {
           const dashboardDoc = await getDoc(
-            doc(db, "dashboards", requirement.dashboardReferencia)
+            doc(db, "dashboards", requirement.dashboardReferencia),
           );
           if (dashboardDoc.exists()) {
             setDashboardInfo({
@@ -160,6 +164,38 @@ export default function RequirementDetail({
 
     loadDashboardInfo();
   }, [requirement.dashboardReferencia]);
+
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (!requirement.id) return;
+
+      try {
+        setLoadingDocuments(true);
+
+        const docsRef = collection(db, "documents");
+        const q = query(
+          docsRef,
+          where("relatedRequirementId", "==", requirement.id),
+          orderBy("createdAt", "desc"),
+        );
+
+        const querySnapshot = await getDocs(q);
+        const docs: any[] = [];
+
+        querySnapshot.forEach((doc) => {
+          docs.push({ id: doc.id, ...doc.data() });
+        });
+
+        setDocuments(docs);
+      } catch (err) {
+        console.error("Error al cargar documentos:", err);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+
+    loadDocuments();
+  }, [requirement.id]);
 
   // Guardar cambios en el seguimiento
   const handleSave = async () => {
@@ -385,7 +421,7 @@ export default function RequirementDetail({
                 <div className="border rounded p-2 themed-surface">
                   {getOptionLabel(
                     requirement.destinoPrincipal || "informacion",
-                    destinosPrincipales
+                    destinosPrincipales,
                   )}
                 </div>
               </div>
@@ -397,7 +433,7 @@ export default function RequirementDetail({
                 <div className="border rounded p-2 themed-surface">
                   {getOptionLabel(
                     requirement.naturalezaPedido || "informacion_estatica",
-                    naturalezasPedido
+                    naturalezasPedido,
                   )}
                 </div>
               </div>
@@ -414,7 +450,7 @@ export default function RequirementDetail({
                     <div className="border rounded p-2 themed-surface">
                       {getOptionLabel(
                         requirement.appReferencia,
-                        appsReferencia
+                        appsReferencia,
                       )}
                     </div>
                   </div>
@@ -484,7 +520,7 @@ export default function RequirementDetail({
                 <div className="border rounded p-2 themed-surface">
                   {getOptionLabel(
                     requirement.importancia || "baja",
-                    importancias
+                    importancias,
                   )}
                 </div>
               </div>
@@ -611,8 +647,93 @@ export default function RequirementDetail({
         loading={loading}
       />
 
+      {/* 📎 Documentos asociados */}
+      <div className="card mb-4">
+        <div className="card-header d-flex justify-content-between align-items-center">
+          <h6 className="mb-0">
+            <i className="bi bi-paperclip me-2"></i>
+            Documentos asociados
+          </h6>
+
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => setShowDocumentForm(true)}
+          >
+            <i className="bi bi-plus-lg me-1"></i>
+            Agregar documento
+          </button>
+        </div>
+
+        <div className="card-body">
+          {loadingDocuments ? (
+            <div className="text-center text-muted">Cargando documentos...</div>
+          ) : documents.length === 0 ? (
+            <div className="text-muted">No hay documentos asociados.</div>
+          ) : (
+            <ul className="list-group list-group-flush">
+              {documents.map((doc) => (
+                <li
+                  key={doc.id}
+                  className="list-group-item d-flex justify-content-between align-items-center"
+                >
+                  <div>
+                    <i className="bi bi-file-earmark-text me-2"></i>
+                    {doc.title}
+                  </div>
+
+                  <a
+                    href={doc.documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary"
+                  >
+                    <i className="bi bi-eye me-1"></i>
+                    Abrir
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       {/* Componente Historial de Cambios */}
       <HistorialCambios requirementId={requirement.id} />
+
+      {showDocumentForm && (
+        <div
+          className="modal fade show d-block"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          tabIndex={-1}
+        >
+          <div className="modal-dialog modal-lg modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-upload me-2"></i>
+                  Agregar documento al requerimiento
+                </h5>
+                <button
+                  className="btn-close"
+                  onClick={() => setShowDocumentForm(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body">
+                <DocumentForm
+                  relatedRequirementId={requirement.id}
+                  relatedRequirementTitle={requirement.tituloBreve}
+                  onSuccess={() => {
+                    setShowDocumentForm(false);
+                    onUpdate();
+                  }}
+                  onCancel={() => setShowDocumentForm(false)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Botones de acción */}
       <div className="d-flex justify-content-end gap-2 mt-4">

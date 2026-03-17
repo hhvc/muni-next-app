@@ -4,7 +4,13 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { db } from "@/firebase/clientApp";
-import { collection, addDoc, Timestamp, getDocs } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  setDoc,
+  Timestamp,
+  getDocs,
+} from "firebase/firestore";
 import {
   DestinoPrincipal,
   NaturalezaPedido,
@@ -71,7 +77,7 @@ export default function RequirementForm({
   const [destinoPrincipal, setDestinoPrincipal] =
     useState<DestinoPrincipal>("informacion");
   const [naturalezaPedido, setNaturalezaPedido] = useState<NaturalezaPedido>(
-    "informacion_estatica"
+    "informacion_estatica",
   );
   const [appReferencia, setAppReferencia] =
     useState<AppReferencia>("no_aplica");
@@ -165,12 +171,12 @@ export default function RequirementForm({
       let dashboardTitulo = "";
       if (destinoPrincipal === "dashboard" && dashboardReferencia) {
         const selectedDashboard = dashboards.find(
-          (d) => d.id === dashboardReferencia
+          (d) => d.id === dashboardReferencia,
         );
         dashboardTitulo = selectedDashboard?.title || "";
       }
 
-      // Crear objeto base - NUNCA usar undefined, usar null o omitir el campo
+      // Crear objeto base - NUNCA usar undefined, usar null u omitir el campo
       const requirementData: any = {
         // Datos del solicitante (automáticos)
         solicitante: {
@@ -252,7 +258,16 @@ export default function RequirementForm({
       }
 
       console.log("Enviando requerimiento:", requirementData);
-      await addDoc(collection(db, "requirements"), requirementData);
+
+      const newRequirementRef = doc(collection(db, "requirements"));
+      const requirementId = newRequirementRef.id;
+
+      requirementData.requirementId = requirementId;
+      requirementData.requirementNumber = `REQ-${requirementId
+        .slice(0, 6)
+        .toUpperCase()}`;
+
+      await setDoc(newRequirementRef, requirementData);
 
       // Mostrar éxito y resetear formulario
       setSuccess(true);
@@ -288,15 +303,15 @@ export default function RequirementForm({
 
       if (firebaseError.message?.includes("permission-denied")) {
         setError(
-          "No tienes permisos para crear requerimientos. Contacta al administrador."
+          "No tienes permisos para crear requerimientos. Contacta al administrador.",
         );
       } else if (firebaseError.message?.includes("invalid data")) {
         setError(
-          "Hay datos inválidos en el formulario. Por favor, revisa los campos."
+          "Hay datos inválidos en el formulario. Por favor, revisa los campos.",
         );
       } else {
         setError(
-          "Ocurrió un error al guardar el requerimiento. Por favor, inténtalo de nuevo."
+          "Ocurrió un error al guardar el requerimiento. Por favor, inténtalo de nuevo.",
         );
       }
     } finally {
