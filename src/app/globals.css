@@ -2,6 +2,8 @@
    THEME VARIABLES (Single source of truth)
    ========================================================= */
 
+   @import "bootstrap-icons/font/bootstrap-icons.css";
+   
 /* ---------- Dark (default) ---------- */
 html[data-theme="dark"] {
   --background: #001f3f;

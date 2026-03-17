@@ -22,6 +22,8 @@ export default function CentralDashboard() {
         return "/dashboard/data";
       case "guardiaurbana":
         return "/dashboard/guardiaurbana";
+      case "promotoresconvivencia":
+        return "/dashboard/promotoresconvivencia";
       default:
         return "/dashboard/root";
     }
@@ -43,6 +45,14 @@ export default function CentralDashboard() {
     "hr",
     "data",
     "guardiaurbana",
+  ].includes(userRole || "");
+
+  const hasPromotoresAccess = [
+    "root",
+    "admin",
+    "hr",
+    "data",
+    "promotoresconvivencia",
   ].includes(userRole || "");
 
   return (
@@ -97,7 +107,37 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 2: Dashboard Guardia Urbana */}
+              {/* Tarjeta 2: Promotores de Convivencia */}
+              <div className="col-md-6 col-lg-4 mb-4">
+                <DashboardCard
+                  icon="bi-people"
+                  iconVariant="warning"
+                  title="Promotores de Convivencia"
+                  description="Panel de gestión y seguimiento para promotores de convivencia"
+                  action={
+                    hasPromotoresAccess ? (
+                      <button
+                        className="btn btn-outline-warning btn-sm"
+                        onClick={() =>
+                          router.push("/dashboard/promotoresconvivencia")
+                        }
+                      >
+                        Acceder
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        disabled
+                        title="No tienes permisos para acceder a este dashboard"
+                      >
+                        No disponible
+                      </button>
+                    )
+                  }
+                />
+              </div>
+
+              {/* Tarjeta 3: Dashboard Guardia Urbana */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🚓"
@@ -125,7 +165,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 3: Tableros de Datos */}
+              {/* Tarjeta 4: Tableros de Datos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📊"
@@ -143,7 +183,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 4: Formularios */}
+              {/* Tarjeta 5: Formularios */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📋"
@@ -161,7 +201,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 5: Sistemas de Gestión (Inactivo por ahora) */}
+              {/* Tarjeta 6: Sistemas de Gestión (Inactivo por ahora) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🔧"
@@ -180,7 +220,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 6: Repositorio de Documentos */}
+              {/* Tarjeta 7: Repositorio de Documentos */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📚"
@@ -208,7 +248,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 7: Plantillas de Documentos (NUEVA) */}
+              {/* Tarjeta 8: Plantillas de Documentos (NUEVA) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="📄"
@@ -238,7 +278,7 @@ export default function CentralDashboard() {
                 />
               </div>
 
-              {/* Tarjeta 8: Panel de Administración Datos (con ícono mejorado) */}
+              {/* Tarjeta 9: Panel de Administración Datos (con ícono mejorado) */}
               <div className="col-md-6 col-lg-4 mb-4">
                 <DashboardCard
                   icon="🖥️"
