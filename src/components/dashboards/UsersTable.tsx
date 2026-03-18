@@ -32,6 +32,7 @@ const UsersTable: React.FC = () => {
     "editor",
     "manager",
     "guardiaurbana",
+    "promotoresconvivencia"
   ]);
   const [editingUser, setEditingUser] = useState<DashboardUser | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);

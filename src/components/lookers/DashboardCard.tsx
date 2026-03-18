@@ -77,7 +77,7 @@ export default function DashboardCard({
         <div className="card-body d-flex flex-column p-4">
           {/* Header */}
           <div className="d-flex align-items-start mb-3">
-            <div className="flex-grow-1">
+            <div className="grow">
               <h5 className="dashboard-card-title mb-1 fw-semibold">{title}</h5>
 
               {badge && (
@@ -87,7 +87,7 @@ export default function DashboardCard({
               )}
             </div>
 
-            <div className="ms-2 flex-shrink-0 text-muted">
+            <div className="ms-2 shrink-0 text-muted">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="20"
@@ -110,7 +110,7 @@ export default function DashboardCard({
 
           {/* Descripción */}
           {description && (
-            <p className="dashboard-card-text flex-grow-1 small">
+            <p className="dashboard-card-text grow small">
               {description}
             </p>
           )}

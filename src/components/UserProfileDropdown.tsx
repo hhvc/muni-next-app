@@ -93,7 +93,7 @@ export default function UserProfileDropdown({
             alt="Foto de perfil"
             width={60} // Aumentado de 45 a 60
             height={60} // Aumentado de 45 a 60
-            className="rounded-circle border border-2 border-white shadow"
+            className="rounded-circle border-2 border-white shadow"
             style={{ objectFit: "cover" }}
           />
         ) : (
@@ -134,7 +134,7 @@ export default function UserProfileDropdown({
                   alt="Foto de perfil"
                   width={80} // Opcional: también aumentar en el dropdown
                   height={80} // Opcional: también aumentar en el dropdown
-                  className="rounded-circle border border-3 mb-2"
+                  className="rounded-circle border-3 mb-2"
                   style={{ objectFit: "cover" }}
                 />
               ) : (

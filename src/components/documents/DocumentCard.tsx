@@ -159,11 +159,11 @@ export default function DocumentCard({
         <div className="card-body d-flex flex-column p-3 document-card-body">
           {/* Header */}
           <div className="d-flex align-items-start mb-2 document-card-header">
-            <div className="flex-grow-1 me-2 document-card-title-container">
+            <div className="grow me-2 document-card-title-container">
               <h5 className="document-card-title mb-1 fw-semibold">{title}</h5>
             </div>
 
-            <div className="ms-auto flex-shrink-0 text-muted document-card-icon">
+            <div className="ms-auto shrink-0 text-muted document-card-icon">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -201,7 +201,7 @@ export default function DocumentCard({
 
           {/* Descripción */}
           {description && (
-            <p className="document-card-text flex-grow-1 small text-muted mb-3">
+            <p className="document-card-text grow small text-muted mb-3">
               {description.length > 120
                 ? `${description.substring(0, 120)}...`
                 : description}

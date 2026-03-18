@@ -55,7 +55,7 @@ export default function FormCard({
             {/* Header */}
             <div className="d-flex align-items-center mb-3">
               {/* Icon */}
-              <div className="me-3 flex-shrink-0">
+              <div className="me-3 shrink-0">
                 <div className="dashboard-icon dashboard-icon-secondary rounded-circle">
                   {iconUrl ? (
                     <Image src={iconUrl} alt={title} width={28} height={28} />
@@ -76,7 +76,7 @@ export default function FormCard({
               </div>
 
               {/* Title + badges */}
-              <div className="flex-grow-1">
+              <div className="grow">
                 <h5 className="dashboard-card-title mb-1 fw-semibold text-muted">
                   {title}
                 </h5>
@@ -108,7 +108,7 @@ export default function FormCard({
 
             {/* Description */}
             {description && (
-              <p className="dashboard-card-text flex-grow-1 text-muted">
+              <p className="dashboard-card-text grow text-muted">
                 {description}
               </p>
             )}
@@ -138,7 +138,7 @@ export default function FormCard({
           {/* Header */}
           <div className="d-flex align-items-center mb-3">
             {/* Icon */}
-            <div className="me-3 flex-shrink-0">
+            <div className="me-3 shrink-0">
               <div className="dashboard-icon dashboard-icon-info rounded-circle">
                 {iconUrl ? (
                   <Image src={iconUrl} alt={title} width={28} height={28} />
@@ -159,7 +159,7 @@ export default function FormCard({
             </div>
 
             {/* Title + badge */}
-            <div className="flex-grow-1">
+            <div className="grow">
               <h5 className="dashboard-card-title mb-1 fw-semibold">{title}</h5>
 
               {badge && (
@@ -189,7 +189,7 @@ export default function FormCard({
 
           {/* Description */}
           {description && (
-            <p className="dashboard-card-text flex-grow-1">{description}</p>
+            <p className="dashboard-card-text grow">{description}</p>
           )}
 
           {/* Footer */}
