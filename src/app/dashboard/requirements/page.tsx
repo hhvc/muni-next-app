@@ -6,6 +6,7 @@ import RequirementForm from "@/components/requirements/RequirementForm";
 import RequirementsList from "@/components/requirements/RequirementsList";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import BackButton from "@/components/ui/BackButton";
 
 export default function RequirementsPage() {
   const { user, userRoles } = useAuth();
@@ -14,7 +15,7 @@ export default function RequirementsPage() {
   const [showForm, setShowForm] = useState(false); // Estado para controlar la visibilidad del formulario
 
   const isAdmin = userRoles?.some((role) =>
-    ["admin", "root", "data"].includes(role)
+    ["admin", "root", "data"].includes(role),
   );
 
   useEffect(() => {
@@ -61,13 +62,7 @@ export default function RequirementsPage() {
             </div>
 
             <div className="d-flex gap-2">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => router.push("/")}
-              >
-                <i className="bi bi-arrow-left me-2"></i>
-                Volver
-              </button>
+              <BackButton />
               <button
                 className="btn btn-primary"
                 onClick={() => setShowForm(!showForm)}

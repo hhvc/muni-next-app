@@ -5,6 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import Unauthorized from "@/components/Unauthorized";
 import DocumentsManager from "@/components/documents/DocumentsManager";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import BackButton from "@/components/ui/BackButton";
 
 export default function DocumentsPage() {
   const { user, userRoles, loadingUserStatus, hasError, errorDetails } =
@@ -38,7 +39,7 @@ export default function DocumentsPage() {
 
   // Verificar permisos para acceder al repositorio
   const canAccessDocuments = userRoles?.some((role) =>
-    ["admin", "hr", "root", "data", "collaborator"].includes(role)
+    ["admin", "hr", "root", "data", "collaborator"].includes(role),
   );
 
   if (!user || !canAccessDocuments) {
@@ -47,9 +48,9 @@ export default function DocumentsPage() {
 
   return (
     <div className="container-fluid py-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h1 className="h2 fw-bold">
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h1 className="h2 fw-bold mb-1">
             <i className="bi bi-folder2-open text-info me-3"></i>
             Repositorio de Documentos
           </h1>
@@ -57,6 +58,8 @@ export default function DocumentsPage() {
             Accede y gestiona todos los documentos compartidos
           </p>
         </div>
+
+        <BackButton />
       </div>
 
       <DocumentsManager />

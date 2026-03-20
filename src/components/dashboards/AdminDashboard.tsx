@@ -11,6 +11,7 @@ import InvitationsTable from "./InvitationsTable";
 import LookersManager from "@/components/lookers/LookersManager";
 import DocumentsManager from "@/components/documents/DocumentsManager"; // Importar DocumentsManager
 import RequirementsList from "@/components/requirements/RequirementsList";
+import BackButton from "@/components/ui/BackButton";
 
 type AdminTab =
   | "requirements"
@@ -64,31 +65,31 @@ export default function AdminDashboard() {
 
         // Contar invitaciones (usando candidateInvitations)
         const invitationsSnapshot = await getDocs(
-          collection(db, "candidateInvitations")
+          collection(db, "candidateInvitations"),
         );
         const invitationsCount = invitationsSnapshot.size;
 
         // ✅ Contar requerimientos por estado
         const requirementsSnapshot = await getDocs(
-          collection(db, "requirements")
+          collection(db, "requirements"),
         );
         const requirements = requirementsSnapshot.docs.map((doc) => doc.data());
 
         const requirementsCount = requirementsSnapshot.size;
         const requirementsInicial = requirements.filter(
-          (r) => r.estado === "inicial"
+          (r) => r.estado === "inicial",
         ).length;
         const requirementsEnRevision = requirements.filter(
-          (r) => r.estado === "en_revision"
+          (r) => r.estado === "en_revision",
         ).length;
         const requirementsEnProgreso = requirements.filter(
-          (r) => r.estado === "en_progreso"
+          (r) => r.estado === "en_progreso",
         ).length;
         const requirementsCompletados = requirements.filter(
-          (r) => r.estado === "completado"
+          (r) => r.estado === "completado",
         ).length;
         const requirementsRechazados = requirements.filter(
-          (r) => r.estado === "rechazado"
+          (r) => r.estado === "rechazado",
         ).length;
 
         // ✅ Contar documentos (nueva estadística)
@@ -189,7 +190,7 @@ export default function AdminDashboard() {
       {/* Header con título y badge */}
       <div className="row mb-3">
         <div className="col-12">
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
             <div>
               <h1 className="h3 mb-0 text-white">
                 <i className="bi bi-shield-check me-2"></i>
@@ -199,10 +200,13 @@ export default function AdminDashboard() {
                 Gestiona todos los recursos del sistema municipal
               </p>
             </div>
-            <div className="text-end">
+
+            <div className="d-flex align-items-center gap-2">
               <span className="badge bg-primary">
                 {userRoles?.includes("root") ? "Root Admin" : "Administrador"}
               </span>
+
+              <BackButton className="btn btn-outline-light btn-sm" />
             </div>
           </div>
         </div>

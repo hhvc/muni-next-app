@@ -2,6 +2,7 @@
 "use client";
 
 import DashboardsGrid from "@/components/lookers/DashboardsGrid";
+import BackButton from "@/components/ui/BackButton";
 
 export default function DashboardsPage() {
   return (
@@ -10,11 +11,17 @@ export default function DashboardsPage() {
         <div className="col-12">
           <div className="card mb-4">
             <div className="card-body">
-              <h1 className="h3 mb-4">Tableros de Looker Studio</h1>
-              <p className="text-muted">
-                Administra los tableros (dashboards) de Looker Studio
-                disponibles para los usuarios.
-              </p>
+              <div className="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h1 className="h3 mb-1">Tableros de Looker Studio</h1>
+                  <p className="text-muted mb-0">
+                    Administra los tableros (dashboards) de Looker Studio
+                    disponibles para los usuarios.
+                  </p>
+                </div>
+
+                <BackButton />
+              </div>
             </div>
           </div>
         </div>
