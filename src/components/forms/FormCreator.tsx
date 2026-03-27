@@ -94,6 +94,12 @@ export default function FormCreator({
       return;
     }
 
+    if (!category.trim()) {
+      setError("La categoría es obligatoria");
+      setLoading(false);
+      return;
+    }
+
     if (!formUrl.trim()) {
       setError("La URL del formulario es obligatoria");
       setLoading(false);
@@ -271,17 +277,24 @@ export default function FormCreator({
             {/* Categoría */}
             <div className="col-md-6 mb-3">
               <label htmlFor="category" className="form-label">
-                Categoría
+                Categoría *
               </label>
-              <input
-                type="text"
+              <select
                 className="form-control"
                 id="category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ej: Recursos Humanos"
                 disabled={loading}
-              />
+                required
+              >
+                <option value="">-- Selecciona una categoría --</option>
+                <option value="GuardiaUrbana">Guardia Urbana</option>
+                <option value="Convivencia">Convivencia</option>
+                <option value="RRHH">RRHH</option>
+                <option value="Logistica">Logística</option>
+                <option value="Datos">Datos</option>
+                <option value="Otros">Otros</option>
+              </select>
             </div>
 
             {/* URL del formulario */}

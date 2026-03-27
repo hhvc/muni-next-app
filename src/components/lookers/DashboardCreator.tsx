@@ -106,6 +106,12 @@ export default function DashboardCreator({
       return;
     }
 
+    if (!category.trim()) {
+      setError("La categoría es obligatoria");
+      setLoading(false);
+      return;
+    }
+
     if (!dashboardUrl.trim()) {
       setError("La URL del tablero es obligatoria");
       setLoading(false);
@@ -200,9 +206,8 @@ export default function DashboardCreator({
   return (
     <div className="card shadow-sm">
       <div
-        className={`card-header ${
-          isEditMode ? "bg-warning text-dark" : "bg-info text-white"
-        }`}
+        className={`card-header ${isEditMode ? "bg-warning text-dark" : "bg-info text-white"
+          }`}
       >
         <h5 className="mb-0">
           {isEditMode ? (
@@ -270,17 +275,24 @@ export default function DashboardCreator({
             {/* Categoría */}
             <div className="col-md-6 mb-3">
               <label htmlFor="category" className="form-label">
-                Categoría
+                Categoría *
               </label>
-              <input
-                type="text"
+              <select
                 className="form-control"
                 id="category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ej: Convivencia, Guardia Urbana, RRHH, etc."
                 disabled={loading}
-              />
+                required
+              >
+                <option value="">-- Selecciona una categoría --</option>
+                <option value="GuardiaUrbana">Guardia Urbana</option>
+                <option value="Convivencia">Convivencia</option>
+                <option value="RRHH">RRHH</option>
+                <option value="Logistica">Logística</option>
+                <option value="Datos">Datos</option>
+                <option value="Otros">Otros</option>
+              </select>
             </div>
 
             {/* URL del tablero/ dashboard */}
@@ -563,9 +575,8 @@ export default function DashboardCreator({
             </div>
             <button
               type="submit"
-              className={`btn ${
-                isEditMode ? "btn-warning" : "btn-info text-white"
-              }`}
+              className={`btn ${isEditMode ? "btn-warning" : "btn-info text-white"
+                }`}
               disabled={loading}
             >
               {loading ? (
