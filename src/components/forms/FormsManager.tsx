@@ -48,14 +48,14 @@ export default function FormsManager() {
   const [showAllForms, setShowAllForms] = useState(false);
 
   // Verificar permisos para crear formularios
-  const canCreateForms = userRoles?.some((role) =>
+  const canCreateForms = (userRoles?.some((role) =>
     ["admin", "hr", "root", "data"].includes(role)
-  );
+  )) ?? false;
 
   // Verificar permisos para editar/eliminar formularios
-  const canEditForms = userRoles?.some((role) =>
+  const canEditForms = (userRoles?.some((role) =>
     ["admin", "root"].includes(role)
-  );
+  )) ?? false;
 
   // Función para normalizar allowedRoles
   const normalizeAllowedRoles = useCallback(
@@ -154,8 +154,7 @@ export default function FormsManager() {
       console.error("❌ Error al cargar formularios:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
-        `Error al cargar formularios: ${
-          firebaseError.message || "Error desconocido"
+        `Error al cargar formularios: ${firebaseError.message || "Error desconocido"
         }`
       );
     } finally {
@@ -204,8 +203,7 @@ export default function FormsManager() {
       console.error("❌ Error al eliminar formulario:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
-        `Error al eliminar formulario: ${
-          firebaseError.message || "Error desconocido"
+        `Error al eliminar formulario: ${firebaseError.message || "Error desconocido"
         }`
       );
     }
@@ -231,8 +229,7 @@ export default function FormsManager() {
       console.error("❌ Error al cambiar estado del formulario:", err);
       const firebaseError = err as { code?: string; message?: string };
       setError(
-        `Error al cambiar estado: ${
-          firebaseError.message || "Error desconocido"
+        `Error al cambiar estado: ${firebaseError.message || "Error desconocido"
         }`
       );
     }
