@@ -3,6 +3,9 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import { generateInvitation as generateInvitationFunction } from "./invitations";
+import { validateAttendance } from "./attendance/attendance";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+
 
 // ==================== INICIALIZACIÓN (MANTENIENDO TU CÓDIGO ORIGINAL) ====================
 
@@ -186,7 +189,6 @@ export const generateInvitation = generateInvitationFunction;
 
 // FUNCIÓN DE LIMPIEZA AUTOMÁTICA
 
-import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export const cleanupTestData = onSchedule(
   {
@@ -228,3 +230,5 @@ if (process.env.FUNCTIONS_EMULATOR) {
     // Utilidades para testing
   };
 }
+
+export { validateAttendance };

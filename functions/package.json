@@ -22,6 +22,7 @@
     "muni-next-app": "file:.."
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/lodash": "^4.17.18",
     "@types/triple-beam": "^1.3.5",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
