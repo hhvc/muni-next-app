@@ -3,7 +3,10 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import { generateInvitation as generateInvitationFunction } from "./invitations";
-import { validateAttendance } from "./attendance/attendance";
+import {
+  validateAttendance,
+  generateAttendanceQr,
+} from "./attendance/attendance";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
 
@@ -231,4 +234,7 @@ if (process.env.FUNCTIONS_EMULATOR) {
   };
 }
 
-export { validateAttendance };
+export {
+  validateAttendance,
+  generateAttendanceQr,
+};

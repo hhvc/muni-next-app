@@ -9,35 +9,37 @@ interface ValidateAttendanceData {
     accuracy?: number;
 }
 
-const SECRET = process.env.ATTENDANCE_SECRET || "cambiar-urgente";
-const BRANCH_ID = "central";
+interface GenerateQrData {
+    pointCode: string;
+}
 
-/* Córdoba ejemplo */
-const OFFICE_LAT = -31.4201;
-const OFFICE_LNG = -64.1888;
-const MAX_DISTANCE_METERS = 150;
+const SECRET = process.env.ATTENDANCE_SECRET || "cambiar-urgente";
+
+// ======================================================
+// HELPERS
+// ======================================================
 
 function minuteString(date: Date) {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mi = String(date.getMinutes()).padStart(2, "0");
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(date.getUTCDate()).padStart(2, "0");
+    const hh = String(date.getUTCHours()).padStart(2, "0");
+    const mi = String(date.getUTCMinutes()).padStart(2, "0");
 
     return `${yyyy}${mm}${dd}${hh}${mi}`;
 }
 
-function sign(branchId: string, minute: string) {
+function sign(pointCode: string, minute: string) {
     return crypto
         .createHmac("sha256", SECRET)
-        .update(`${branchId}|${minute}`)
+        .update(`${pointCode}|${minute}`)
         .digest("hex")
         .substring(0, 16);
 }
 
-function buildToken(branchId: string, minute: string) {
-    const hash = sign(branchId, minute);
-    return `CHECKIN|${branchId}|${minute}|${hash}`;
+function buildToken(pointCode: string, minute: string) {
+    const hash = sign(pointCode, minute);
+    return `CHECKIN|${pointCode}|${minute}|${hash}`;
 }
 
 function distanceMeters(
@@ -47,6 +49,7 @@ function distanceMeters(
     lon2: number
 ) {
     const R = 6371000;
+
     const toRad = (n: number) => (n * Math.PI) / 180;
 
     const dLat = toRad(lat2 - lat1);
@@ -61,6 +64,45 @@ function distanceMeters(
     return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+// ======================================================
+// GENERAR QR OFICIAL (SERVIDOR)
+// ======================================================
+
+export const generateAttendanceQr = functions.https.onCall(
+    async (request: functions.https.CallableRequest<GenerateQrData>) => {
+        if (!request.auth) {
+            throw new functions.https.HttpsError(
+                "unauthenticated",
+                "Debes iniciar sesión"
+            );
+        }
+
+        const { pointCode } = request.data;
+
+        if (!pointCode) {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "Punto requerido"
+            );
+        }
+
+        const now = new Date();
+        const minute = minuteString(now);
+
+        const token = buildToken(pointCode, minute);
+
+        return {
+            token,
+            generatedAt: now.toISOString(),
+            expiresInSeconds: 60,
+        };
+    }
+);
+
+// ======================================================
+// VALIDAR ASISTENCIA
+// ======================================================
+
 export const validateAttendance = functions.https.onCall(
     async (request: functions.https.CallableRequest<ValidateAttendanceData>) => {
         try {
@@ -72,6 +114,7 @@ export const validateAttendance = functions.https.onCall(
             }
 
             const uid = request.auth.uid;
+
             const { token, lat, lng, accuracy } = request.data;
 
             if (!token || lat == null || lng == null) {
@@ -81,45 +124,85 @@ export const validateAttendance = functions.https.onCall(
                 );
             }
 
+            const parts = token.split("|");
+
+            if (parts.length !== 4 || parts[0] !== "CHECKIN") {
+                throw new functions.https.HttpsError(
+                    "permission-denied",
+                    "QR inválido"
+                );
+            }
+
+            const pointCode = parts[1];
+            const minute = parts[2];
+            const hash = parts[3];
+
+            const expectedHash = sign(pointCode, minute);
+
+            if (hash !== expectedHash) {
+                throw new functions.https.HttpsError(
+                    "permission-denied",
+                    "Firma inválida"
+                );
+            }
+
+            // tolerancia profesional: minuto actual + 2 previos
+            const now = new Date();
+
+            const validMinutes = [];
+
+            for (let i = 0; i <= 5; i++) {
+                validMinutes.push(
+                    minuteString(
+                        new Date(now.getTime() - i * 60000)
+                    )
+                );
+            }
+
+            if (!validMinutes.includes(minute)) {
+                throw new functions.https.HttpsError(
+                    "permission-denied",
+                    "QR vencido"
+                );
+            }
+
             const db = new admin.firestore.Firestore({
                 databaseId: "munidb",
             });
 
-            /* TOKEN minuto actual o anterior */
-            const now = new Date();
-            const currentMinute = minuteString(now);
+            // buscar punto
+            const pointSnap = await db
+                .collection("attendance_points")
+                .where("codigo", "==", pointCode)
+                .where("activo", "==", true)
+                .limit(1)
+                .get();
 
-            const prev = new Date(now.getTime() - 60000);
-            const prevMinute = minuteString(prev);
-
-            const validTokens = [
-                buildToken(BRANCH_ID, currentMinute),
-                buildToken(BRANCH_ID, prevMinute),
-            ];
-
-            if (!validTokens.includes(token)) {
+            if (pointSnap.empty) {
                 throw new functions.https.HttpsError(
                     "permission-denied",
-                    "QR vencido o inválido"
+                    "Punto inválido"
                 );
             }
 
-            /* GPS */
+            const point = pointSnap.docs[0];
+            const pointData = point.data();
+
             const meters = distanceMeters(
                 lat,
                 lng,
-                OFFICE_LAT,
-                OFFICE_LNG
+                pointData.lat,
+                pointData.lng
             );
 
-            if (meters > MAX_DISTANCE_METERS) {
+            if (meters > pointData.radio) {
                 throw new functions.https.HttpsError(
                     "permission-denied",
                     "Fuera del perímetro permitido"
                 );
             }
 
-            /* Anti doble ingreso */
+            // anti duplicado diario inmediato
             const recentSnap = await db
                 .collection("attendance_logs")
                 .where("uid", "==", uid)
@@ -148,17 +231,20 @@ export const validateAttendance = functions.https.onCall(
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 tipo: "ingreso",
                 metodo: "qr",
+                puntoId: point.id,
+                puntoNombre: pointData.nombre,
+                pointCode,
                 lat,
                 lng,
                 accuracy: accuracy || null,
                 distancia: Math.round(meters),
-                branchId: BRANCH_ID,
                 validado: true,
             });
 
             return {
                 success: true,
                 message: "Ingreso registrado",
+                punto: pointData.nombre,
             };
         } catch (error) {
             functions.logger.error(error);

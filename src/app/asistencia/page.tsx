@@ -1,3 +1,5 @@
+// src/app/asistencia/page.tsx
+
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -17,6 +19,10 @@ export default function AsistenciaPage() {
     const scannerRef = useRef<Html5QrcodeScanner | null>(null);
     const processingRef = useRef(false);
 
+    // =====================================================
+    // PERMISOS
+    // =====================================================
+
     useEffect(() => {
         if (!userRoles) return;
 
@@ -27,7 +33,27 @@ export default function AsistenciaPage() {
         setAllowed(ok);
     }, [userRoles]);
 
-    const iniciarScanner = () => {
+    // =====================================================
+    // LIMPIAR SCANNER
+    // =====================================================
+
+    const clearScanner = async () => {
+        try {
+            await scannerRef.current?.clear();
+        } catch {
+            //
+        }
+
+        scannerRef.current = null;
+    };
+
+    // =====================================================
+    // INICIAR SCANNER
+    // =====================================================
+
+    const iniciarScanner = async () => {
+        await clearScanner();
+
         const scanner = new Html5QrcodeScanner(
             "reader",
             {
@@ -53,37 +79,54 @@ export default function AsistenciaPage() {
                         async (position) => {
                             try {
                                 const payload = {
-                                    token: decodedText,
+                                    token: decodedText.trim(),
                                     lat: position.coords.latitude,
                                     lng: position.coords.longitude,
-                                    accuracy: position.coords.accuracy,
+                                    accuracy:
+                                        position.coords.accuracy,
                                 };
 
-                                setStatus("Validando asistencia...");
+                                setStatus(
+                                    "Validando asistencia..."
+                                );
 
-                                const functions = getFunctions(app, "us-central1");
+                                const functions =
+                                    getFunctions(
+                                        app,
+                                        "us-central1"
+                                    );
+
                                 const fn = httpsCallable(
                                     functions,
                                     "validateAttendance"
                                 );
 
-                                const result = await fn(payload);
+                                const result =
+                                    await fn(payload);
 
                                 console.log(result.data);
 
-                                setStatus("✅ Asistencia registrada correctamente");
-                            } catch (error: any) {
-                                console.error(error);
-
                                 setStatus(
-                                    `❌ ${error?.message || "No se pudo validar asistencia"}`
+                                    "✅ Asistencia registrada correctamente"
                                 );
+                            } catch (error: any) {
+                                console.error("VALIDATE ERROR:", error);
+
+                                const msg =
+                                    error?.details ||
+                                    error?.message ||
+                                    error?.code ||
+                                    "No se pudo validar asistencia";
+
+                                setStatus(`❌ ${msg}`);
                             } finally {
                                 setLoading(false);
                             }
                         },
                         () => {
-                            setStatus("❌ No se pudo obtener ubicación GPS.");
+                            setStatus(
+                                "❌ No se pudo obtener ubicación GPS."
+                            );
                             setLoading(false);
                         },
                         {
@@ -103,15 +146,23 @@ export default function AsistenciaPage() {
         scannerRef.current = scanner;
     };
 
+    // =====================================================
+    // AUTO INICIO
+    // =====================================================
+
     useEffect(() => {
         if (!allowed) return;
 
         iniciarScanner();
 
         return () => {
-            scannerRef.current?.clear().catch(() => { });
+            clearScanner();
         };
     }, [allowed]);
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     if (!user) return null;
 
@@ -127,9 +178,11 @@ export default function AsistenciaPage() {
 
     return (
         <div className="container py-4">
-            <h2>Registrar Asistencia</h2>
+            <h2 className="mb-4">
+                Registrar Asistencia
+            </h2>
 
-            <p>Escaneá el QR de recepción.</p>
+            <p>Escaneá el QR oficial.</p>
 
             <div id="reader" />
 
