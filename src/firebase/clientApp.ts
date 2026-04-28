@@ -1,6 +1,5 @@
 // src/firebase/clientApp.ts
 
-// Importa solo los módulos necesarios del SDK de Cliente de Firebase
 import {
   initializeApp,
   getApps,
@@ -19,8 +18,19 @@ import {
   connectStorageEmulator,
   FirebaseStorage,
 } from "firebase/storage";
+import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+  AppCheck, // ← IMPORTANTE: Importar el tipo AppCheck
+} from "firebase/app-check";
 
 // ==================== CONFIGURACIÓN SEGURA ====================
+
+// IMPORTANTE: La site key debe ser pública (está ok exponerla)
+const RECAPTCHA_SITE_KEY = "6LdTic0sAAAAALk9LHokzfkahKDcFSSP40_9hRtf";
+
+// Variable para almacenar la instancia de App Check
+let appCheck: AppCheck | null = null;
 
 /**
  * Valida la configuración de Firebase
@@ -155,10 +165,32 @@ try {
     ).split(":");
     connectStorageEmulator(storage, storageHost, parseInt(storagePort, 10));
     console.log(`💾 Storage Emulator: http://${storageHost}:${storagePort}`);
+
+    // NOTA: App Check NO se inicializa con emuladores
+    console.log("⚠️ App Check deshabilitado (usando emuladores)");
+
   } else if (isBrowser) {
     // En producción o desarrollo sin emuladores, inicializar Auth y Storage normalmente
     auth = getAuth(app);
     storage = getStorage(app);
+
+    // ========== CONFIGURAR APP CHECK (SOLO PRODUCCIÓN) ==========
+    // No inicializar en desarrollo para evitar errores
+    if (process.env.NODE_ENV === "production") {
+      try {
+        // ✅ CORREGIDO: Usar ReCaptchaV3Provider en lugar de ReCaptchaEnterpriseProvider
+        appCheck = initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+          isTokenAutoRefreshEnabled: true,
+        });
+        console.log("✅ App Check con reCAPTCHA v3 inicializado correctamente");
+      } catch (error) {
+        console.error("❌ Error inicializando App Check:", error);
+        // No lanzar error, la app puede funcionar sin App Check pero con riesgos
+      }
+    } else {
+      console.log("⚠️ App Check deshabilitado en desarrollo (ambiente local)");
+    }
 
     if (process.env.NODE_ENV === "development") {
       console.log("🚀 Firebase en modo desarrollo (sin emuladores)");
@@ -185,8 +217,7 @@ try {
   } else {
     // En producción, es mejor fallar claramente
     throw new Error(
-      `Inicialización de Firebase falló: ${
-        error instanceof Error ? error.message : "Error desconocido"
+      `Inicialización de Firebase falló: ${error instanceof Error ? error.message : "Error desconocido"
       }`
     );
   }
@@ -194,7 +225,7 @@ try {
 
 // ==================== EXPORTACIONES ====================
 
-export { app, db, auth, storage };
+export { app, db, auth, storage, appCheck };
 
 // ==================== UTILIDADES ADICIONALES ====================
 
@@ -206,6 +237,7 @@ export const getFirebaseStatus = () => {
   const isInitialized = !!app;
   const isBrowser = typeof window !== "undefined";
   const usingEmulators = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "true";
+  const hasAppCheck = !!appCheck;
 
   return {
     isInitialized,
@@ -214,6 +246,7 @@ export const getFirebaseStatus = () => {
     environment: process.env.NODE_ENV,
     hasAuth: !!auth,
     hasStorage: !!storage,
+    hasAppCheck,
     projectId: app?.options?.projectId || "no-inicializado",
   };
 };

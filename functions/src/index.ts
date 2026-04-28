@@ -2,32 +2,24 @@
 
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
+import { getFirestore } from "firebase-admin/firestore"; // ✅ Importación necesaria para db con nombre
 import { generateInvitation as generateInvitationFunction } from "./invitations";
-import {
-  validateAttendance,
-  generateAttendanceQr,
-} from "./attendance/attendance";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
+// ==================== INICIALIZACIÓN (CORREGIDA) ====================
 
-// ==================== INICIALIZACIÓN (MANTENIENDO TU CÓDIGO ORIGINAL) ====================
-
-try {
-  if (admin.apps.length === 0) {
+// ✅ Inicialización única al cargar el módulo para evitar errores de despliegue
+// El Admin SDK debe estar listo antes de que Firebase analice las funciones.
+if (admin.apps.length === 0) {
+  try {
     admin.initializeApp();
-    functions.logger.info(
-      "Firebase Admin SDK inicializado correctamente (App por defecto)"
-    );
+    functions.logger.info("Firebase Admin SDK inicializado correctamente");
+  } catch (error) {
+    functions.logger.error("Error crítico inicializando Firebase Admin SDK:", error);
   }
-} catch (error) {
-  functions.logger.error(
-    "Error inicializando Firebase Admin SDK (App por defecto):",
-    error
-  );
-  throw error;
 }
 
-// ==================== FUNCIÓN HELLO (MEJORADA CON MANEJO DE ERRORES) ====================
+// ==================== FUNCIÓN HELLO (SIMPLIFICADA) ====================
 
 export const hello = functions.https.onRequest(async (req, res) => {
   // Configurar CORS básico para desarrollo
@@ -72,14 +64,14 @@ interface AddTestDataRequestData {
   message?: string;
 }
 
-// ==================== FUNCIÓN ADD TEST DATA (MEJORADA CON VALIDACIONES) ====================
+// ==================== FUNCIÓN ADD TEST DATA ====================
 
 export const addTestData = functions.https.onCall(
   async (request: functions.https.CallableRequest<AddTestDataRequestData>) => {
     const startTime = Date.now();
 
     try {
-      // ========== VALIDACIONES DE SEGURIDAD (MEJORAS NUEVAS) ==========
+      // ========== VALIDACIONES DE SEGURIDAD ==========
 
       // 1. Validar autenticación
       if (!request.auth) {
@@ -113,11 +105,10 @@ export const addTestData = functions.https.onCall(
         );
       }
 
-      // ========== LÓGICA ORIGINAL (SIN CAMBIOS) ==========
+      // ========== LÓGICA DE FIRESTORE (MUNIDB) ==========
 
-      const db = new admin.firestore.Firestore({
-        databaseId: "munidb",
-      });
+      // ✅ Usamos la función importada getFirestore("munidb")
+      const db = getFirestore("munidb");
 
       functions.logger.info(
         "Cliente de Firestore inicializado para 'munidb' en addTestData."
@@ -132,7 +123,6 @@ export const addTestData = functions.https.onCall(
         message: messageToStore,
         created: admin.firestore.FieldValue.serverTimestamp(),
         uid: uid,
-        // Agregamos metadata adicional para debugging
         ip: request.rawRequest.ip || "unknown",
         userAgent: request.rawRequest.get("User-Agent") || "unknown",
       });
@@ -148,12 +138,11 @@ export const addTestData = functions.https.onCall(
         success: true,
         id: docRef.id,
         path: docRef.path,
-        timestamp: new Date().toISOString(), // Mejora: agregar timestamp
+        timestamp: new Date().toISOString(),
       };
     } catch (error: unknown) {
       const executionTime = Date.now() - startTime;
 
-      // Si ya es un HttpsError, lo relanzamos
       if (error instanceof functions.https.HttpsError) {
         functions.logger.warn("Error de HttpsError en addTestData", {
           error: error.message,
@@ -163,13 +152,11 @@ export const addTestData = functions.https.onCall(
         throw error;
       }
 
-      // Para otros errores, loguear y lanzar error genérico
       functions.logger.error("Error inesperado en addTestData", {
         error: error instanceof Error ? error.message : "Error desconocido",
         executionTime: `${executionTime}ms`,
       });
 
-      // En desarrollo, dar más detalles del error
       const errorDetails =
         process.env.FUNCTIONS_EMULATOR && error instanceof Error
           ? { debugMessage: error.message }
@@ -184,14 +171,11 @@ export const addTestData = functions.https.onCall(
   }
 );
 
-// ==================== FUNCIÓN GENERATE INVITATION (SIN CAMBIOS) ====================
+// ==================== FUNCIÓN GENERATE INVITATION ====================
 
 export const generateInvitation = generateInvitationFunction;
 
 // ==================== FUNCIONES ADICIONALES ====================
-
-// FUNCIÓN DE LIMPIEZA AUTOMÁTICA
-
 
 export const cleanupTestData = onSchedule(
   {
@@ -200,9 +184,10 @@ export const cleanupTestData = onSchedule(
   },
   async () => {
     try {
-      const db = new admin.firestore.Firestore({ databaseId: "munidb" });
+      // ✅ Referencia correcta a la base de datos munidb usando getFirestore
+      const db = getFirestore("munidb");
       const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 7); // Hace 7 días
+      cutoffDate.setDate(cutoffDate.getDate() - 7);
 
       const snapshot = await db
         .collection("test")
@@ -225,16 +210,17 @@ export const cleanupTestData = onSchedule(
   }
 );
 
-// ==================== EXPORTACIONES PARA TESTING (SOLO DESARROLLO) ====================
+// ==================== FUNCIONES DE ASISTENCIA (ATTENDANCE) ====================
+
+// Exportar funciones de attendance
+export { validateAttendance } from "./attendance/validateAttendance";
+export { generateAttendanceQr } from "./attendance/generateAttendanceQr";
+export { attendanceToBigQuery } from "./attendance/attendanceToBigQuery";
+
+// ==================== EXPORTACIONES PARA TESTING ====================
 
 if (process.env.FUNCTIONS_EMULATOR) {
-  // Estas exportaciones solo estarán disponibles en el emulador
   exports._testExports = {
     // Utilidades para testing
   };
 }
-
-export {
-  validateAttendance,
-  generateAttendanceQr,
-};
